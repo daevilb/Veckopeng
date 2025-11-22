@@ -25,7 +25,7 @@ export const Setup: React.FC<SetupProps> = ({ onComplete, isFirstRun }) => {
     if (pin.length !== 4) return alert("PIN must be 4 digits");
     
     const newUser: User = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name,
       role,
       pin,
