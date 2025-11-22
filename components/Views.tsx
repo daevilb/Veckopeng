@@ -30,7 +30,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({ currentUser, users, ta
     if (!newTask.title || !newTask.reward || !newTask.assignedToId) return;
 
     const task: Task = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       title: newTask.title,
       description: newTask.description || '',
       reward: Number(newTask.reward),
