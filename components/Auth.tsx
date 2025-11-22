@@ -4,6 +4,7 @@ import { Button } from './Button';
 import { Input } from './Input';
 import { Card } from './Card';
 import { UserPlus, Lock, Phone, ChevronLeft, Check } from 'lucide-react';
+import { generateId } from '@/utils/id';
 
 interface SetupProps {
   onComplete: (user: User) => void;
