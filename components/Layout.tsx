@@ -1,42 +1,37 @@
 import React, { useEffect, useState } from "react";
-import {
-  Home,
-  CheckSquare,
-  Users,
-  Sun,
-  Moon,
-  LogOut,
-  Smartphone,
-  Coffee,
-} from "lucide-react";
-import { Member } from "../types";
-import { useTheme } from "../utils/theme";
+import { Home, CheckSquare, Users, LogOut, Smartphone, Coffee } from "lucide-react";
 
-type TabId = "home" | "tasks" | "family";
+type TabConfig = {
+  id: string;
+  label: string;
+  show: boolean;
+  icon: React.ComponentType<{ className?: string }>;
+};
 
 interface LayoutProps {
   children: React.ReactNode;
-  currentUser: Member;
-  activeTab: TabId;
-  onTabChange: (tab: TabId) => void;
+  currentUser: any; // keep generic to avoid type mismatch with types.ts
+  activeTab: string;
+  onTabChange: (tab: string) => void;
   onLogout: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({
+// Named export (used by App.tsx: `import { Layout } from "./components/Layout"`)
+export const Layout: React.FC<LayoutProps> = ({
   children,
   currentUser,
   activeTab,
   onTabChange,
   onLogout,
 }) => {
-  const { theme, setTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
 
-  // Tabs are defined once and do not disappear when clicking around
-  const tabs: { id: TabId; label: string; icon: React.ComponentType<any>; show: boolean }[] = [
+  // Tabs are stable and never disappear when clicking around.
+  // Only rule: "Family" is visible for parents, hidden for children.
+  const tabs: TabConfig[] = [
     {
       id: "home",
-      label: currentUser.role === "parent" ? "Overview" : "My Week",
+      label: currentUser?.role === "parent" ? "Overview" : "My Week",
       icon: Home,
       show: true,
     },
@@ -50,9 +45,11 @@ const Layout: React.FC<LayoutProps> = ({
       id: "family",
       label: "Family",
       icon: Users,
-      show: currentUser.role === "parent",
+      show: currentUser?.role === "parent",
     },
   ];
+
+  const visibleTabs = tabs.filter((t) => t.show);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -62,17 +59,11 @@ const Layout: React.FC<LayoutProps> = ({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const visibleTabs = tabs.filter((t) => t.show);
-
-  const handleThemeToggle = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
-
-  const isParent = currentUser.role === "parent";
+  const isParent = currentUser?.role === "parent";
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col">
-      {/* Top bar (desktop + mobile) */}
+      {/* Top bar */}
       <header
         className={`sticky top-0 z-30 border-b border-slate-800 bg-slate-950/90 backdrop-blur ${
           isScrolled ? "shadow-lg shadow-slate-900/50" : ""
@@ -98,14 +89,14 @@ const Layout: React.FC<LayoutProps> = ({
               <p className="text-[11px] text-slate-400">
                 Signed in as{" "}
                 <span className="font-medium text-slate-100">
-                  {currentUser.name}
+                  {currentUser?.name ?? "Unknown"}
                 </span>
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Buy Me a Coffee link – only for parents */}
+            {/* Buy Me a Coffee – only for parents */}
             {isParent && (
               <a
                 href="https://www.buymeacoffee.com/daevilb"
@@ -117,20 +108,6 @@ const Layout: React.FC<LayoutProps> = ({
                 Support dev
               </a>
             )}
-
-            {/* Theme toggle */}
-            <button
-              type="button"
-              onClick={handleThemeToggle}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 hover:bg-slate-800 transition"
-              aria-label="Toggle theme"
-            >
-              {theme === "dark" ? (
-                <Sun className="h-4 w-4 text-amber-300" />
-              ) : (
-                <Moon className="h-4 w-4 text-slate-200" />
-              )}
-            </button>
 
             {/* Logout */}
             <button
@@ -155,12 +132,11 @@ const Layout: React.FC<LayoutProps> = ({
                   key={tab.id}
                   type="button"
                   onClick={() => onTabChange(tab.id)}
-                  className={`relative flex items-center gap-2 px-3 py-2 text-xs font-medium transition
-                    ${
-                      isActive
-                        ? "text-emerald-300"
-                        : "text-slate-400 hover:text-slate-100"
-                    }`}
+                  className={`relative flex items-center gap-2 px-3 py-2 text-xs font-medium transition ${
+                    isActive
+                      ? "text-emerald-300"
+                      : "text-slate-400 hover:text-slate-100"
+                  }`}
                 >
                   <Icon className="h-4 w-4" />
                   <span>{tab.label}</span>
@@ -193,12 +169,11 @@ const Layout: React.FC<LayoutProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => onTabChange(tab.id)}
-                className={`flex flex-col items-center justify-center flex-1 py-2 text-[11px] font-medium transition
-                  ${
-                    isActive
-                      ? "text-emerald-300"
-                      : "text-slate-400 hover:text-slate-100"
-                  }`}
+                className={`flex flex-col items-center justify-center flex-1 py-2 text-[11px] font-medium transition ${
+                  isActive
+                    ? "text-emerald-300"
+                    : "text-slate-400 hover:text-slate-100"
+                }`}
               >
                 <Icon className="h-5 w-5 mb-0.5" />
                 <span>{tab.label}</span>
@@ -211,4 +186,5 @@ const Layout: React.FC<LayoutProps> = ({
   );
 };
 
+// Also provide default export in case you ever change import style
 export default Layout;
