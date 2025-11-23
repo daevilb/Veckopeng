@@ -28,7 +28,7 @@ interface TaskManagerProps {
   currentUser: User;
   users: User[];
   tasks: Task[];
-  onStateChange: (state: Partial<AppState>) => void | Promise<void>;
+  onStateChange: (newState: Partial<AppState>) => void;
 }
 
 export const TaskManager: React.FC<TaskManagerProps> = ({
@@ -37,36 +37,23 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   tasks,
   onStateChange,
 }) => {
-  const [filter, setFilter] = useState<
-    'all' | 'pending' | 'waiting_for_approval' | 'completed'
-  >('all');
-  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
-  const [isCreating, setIsCreating] = useState(false);
-
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
     reward: 10,
     assignedToId: '',
   });
+  const [isCreating, setIsCreating] = useState(false);
 
-  const visibleTasks =
-    filter === 'all' ? tasks : tasks.filter((t) => t.status === filter);
-
-  const filteredTasks =
-    assigneeFilter === 'all'
-      ? visibleTasks
-      : visibleTasks.filter((t) => t.assignedToId === assigneeFilter);
-
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTask.title || !newTask.reward || !newTask.assignedToId) return;
+    if (!newTask.title.trim() || !newTask.assignedToId) return;
 
     const task: Task = {
       id: generateId(),
-      title: newTask.title,
-      description: newTask.description || '',
-      reward: Number(newTask.reward),
+      title: newTask.title.trim(),
+      description: newTask.description.trim() || undefined,
+      reward: newTask.reward,
       assignedToId: newTask.assignedToId,
       status: 'pending',
       createdAt: Date.now(),
@@ -84,650 +71,307 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     setIsCreating(false);
   };
 
-  const handleStatusChange = (taskId: string, newStatus: Task['status']) => {
-    const updatedTasks = tasks.map((task) => {
-      if (task.id === taskId) {
-        if (currentUser.role === 'parent') {
-          if (newStatus === 'completed' && task.status !== 'completed') {
-            const child = users.find((u) => u.id === task.assignedToId);
-            if (child) {
-              const updatedUsers = users.map((u) =>
-                u.id === child.id
-                  ? {
-                      ...u,
-                      balance: u.balance + task.reward,
-                      totalEarned: u.totalEarned + task.reward,
-                    }
-                  : u
-              );
-              onStateChange({ users: updatedUsers });
-            }
-          }
-        }
-
-        return {
-          ...task,
-          status: newStatus,
-          completedAt: newStatus === 'completed' ? Date.now() : undefined,
-        };
-      }
-      return task;
-    });
-
-    onStateChange({ tasks: updatedTasks });
-  };
-
   const handleDeleteTask = (taskId: string) => {
-    if (confirm('Delete this task?')) {
-      onStateChange({
-        tasks: tasks.filter((t) => t.id !== taskId),
-      });
-    }
+    if (!confirm('Are you sure you want to delete this task?')) return;
+    onStateChange({ tasks: tasks.filter((task) => task.id !== taskId) });
   };
+
+  const assignedToName = (task: Task) => {
+    const user = users.find((u) => u.id === task.assignedToId);
+    return user?.name ?? 'Unknown';
+  };
+
+  const isParent = currentUser.role === 'parent';
+  const myTasks = isParent
+    ? tasks
+    : tasks.filter((task) => task.assignedToId === currentUser.id);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-            Tasks
+          <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
+            <CheckSquare className="h-4 w-4 text-emerald-400" />
+            {isParent ? 'Family tasks' : 'My tasks'}
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Create, assign, and track chores for your family.
+          <p className="text-xs text-slate-400">
+            {isParent
+              ? 'Create tasks and assign them to your kids. Approve completed tasks to add to their allowance.'
+              : 'Complete your tasks and send them for approval to earn your allowance.'}
           </p>
         </div>
 
-        {currentUser.role === 'parent' && (
-          <Button onClick={() => setIsCreating(true)}>
-            <Plus className="w-4 h-4" />
-            New Task
+        {isParent && (
+          <Button size="sm" onClick={() => setIsCreating(true)}>
+            <Plus className="h-3 w-3 mr-1" />
+            New task
           </Button>
         )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="inline-flex rounded-full bg-gray-100 dark:bg-gray-900 p-1">
-          {['all', 'pending', 'waiting_for_approval', 'completed'].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f as any)}
-              className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
-                filter === f
-                  ? 'bg-primary-500 text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-300'
-              }`}
-            >
-              {f === 'all' && 'All'}
-              {f === 'pending' && 'To Do'}
-              {f === 'waiting_for_approval' && 'In Review'}
-              {f === 'completed' && 'Completed'}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            Filter by kid:
-          </span>
-
-          <select
-            value={assigneeFilter}
-            onChange={(e) => setAssigneeFilter(e.target.value)}
-            className="text-sm bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 rounded-full px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
-          >
-            <option value="all">All kids</option>
-            {users
-              .filter((u) => u.role === 'child')
-              .map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Create Task */}
-      {currentUser.role === 'parent' && isCreating && (
-        <div className="mb-8 animate-in slide-in-from-top-4 fade-in duration-300">
-          <Card className="border-primary-200 dark:border-primary-900/50 ring-4 ring-primary-50 dark:ring-primary-900/20">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="font-bold text-lg text-gray-900 dark:text-white">
-                Create New Task
-              </h3>
-
-              <button
-                onClick={() => setIsCreating(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Task Form */}
-            <form
-              onSubmit={handleCreate}
-              className="grid grid-cols-1 md:grid-cols-12 gap-4"
-            >
-              <div className="md:col-span-6">
-                <Input
-                  required
-                  label="Title"
-                  placeholder="e.g. Clean your room"
-                  value={newTask.title}
-                  onChange={(e) =>
-                    setNewTask({ ...newTask, title: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="md:col-span-6">
-                <Input
-                  label="Description"
-                  placeholder="Optional details"
-                  value={newTask.description}
-                  onChange={(e) =>
-                    setNewTask({
-                      ...newTask,
-                      description: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="md:col-span-3">
-                <Input
-                  label="Reward"
-                  type="number"
-                  min={1}
-                  value={newTask.reward}
-                  onChange={(e) =>
-                    setNewTask({
-                      ...newTask,
-                      reward: Number(e.target.value),
-                    })
-                  }
-                />
-              </div>
-
-              <div className="md:col-span-5">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 ml-1">
-                  Assign to
-                </label>
-
-                <select
-                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  value={newTask.assignedToId}
-                  onChange={(e) =>
-                    setNewTask({
-                      ...newTask,
-                      assignedToId: e.target.value,
-                    })
-                  }
-                  required
+      {/* Create Task Modal */}
+      {isCreating && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/80 backdrop-blur">
+          <div className="w-full max-w-md p-4">
+            <Card>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                    <Plus className="h-4 w-4 text-emerald-400" />
+                    Create task
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Assign a new task to one of your kids
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsCreating(false)}
+                  className="p-1 rounded-full hover:bg-slate-800 text-slate-400 hover:text-slate-100"
                 >
-                  <option value="">Select child</option>
-
-                  {users
-                    .filter((u) => u.role === 'child')
-                    .map((child) => (
-                      <option key={child.id} value={child.id}>
-                        {child.name}
-                      </option>
-                    ))}
-                </select>
+                  <X className="h-4 w-4" />
+                </button>
               </div>
 
-              <div className="md:col-span-4 flex items-end">
-                <Button fullWidth type="submit">
-                  <CheckSquare className="w-4 h-4" />
-                  Add Task
-                </Button>
-              </div>
-            </form>
-          </Card>
+              <form onSubmit={handleCreateTask} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                    Task title
+                  </label>
+                  <Input
+                    value={newTask.title}
+                    onChange={(e) =>
+                      setNewTask((prev) => ({ ...prev, title: e.target.value }))
+                    }
+                    placeholder="Clean your room"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                    Description (optional)
+                  </label>
+                  <textarea
+                    className="w-full rounded-lg bg-slate-900/70 border border-slate-700 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                    rows={3}
+                    value={newTask.description}
+                    onChange={(e) =>
+                      setNewTask((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
+                    placeholder="Pick up all toys and vacuum the floor"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                      Reward (kr)
+                    </label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={newTask.reward}
+                      onChange={(e) =>
+                        setNewTask((prev) => ({
+                          ...prev,
+                          reward: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                      Assign to
+                    </label>
+                    <select
+                      className="w-full rounded-lg bg-slate-900/70 border border-slate-700 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                      value={newTask.assignedToId}
+                      onChange={(e) =>
+                        setNewTask((prev) => ({
+                          ...prev,
+                          assignedToId: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">Select child...</option>
+                      {users
+                        .filter((u) => u.role === 'child')
+                        .map((child) => (
+                          <option key={child.id} value={child.id}>
+                            {child.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsCreating(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Create task
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
         </div>
       )}
 
       {/* Task List */}
-      <div className="grid gap-4">
-        {filteredTasks.length === 0 && (
-          <Card className="text-center py-12">
-            <div className="text-4xl mb-2">🧹</div>
-
-            <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-1">
-              No tasks yet
-            </h3>
-
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Add a task to get started.
-            </p>
+      <div className="grid gap-3">
+        {myTasks.length === 0 ? (
+          <Card className="p-4 text-center text-xs text-slate-400">
+            {isParent
+              ? "No tasks yet. Create your first task to get started!"
+              : "You don't have any tasks assigned right now."}
           </Card>
-        )}
-
-        {filteredTasks.map((task) => {
-          const assignee = users.find((u) => u.id === task.assignedToId);
-
-          let statusColor = '';
-          let statusText = '';
-
-          switch (task.status) {
-            case 'pending':
-              statusColor =
-                'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200';
-              statusText = 'Pending';
-              break;
-
-            case 'waiting_for_approval':
-              statusColor =
-                'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
-              statusText = 'Review';
-              break;
-
-            case 'completed':
-              statusColor =
-                'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400';
-              statusText = 'Done';
-              break;
-          }
-
-          return (
-            <Card
-              key={task.id}
-              className={`transition-all duration-200 ${
-                task.status === 'completed'
-                  ? 'opacity-60 hover:opacity-100'
-                  : ''
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                {/* Task Icon */}
-                <div className="flex items-start gap-4 flex-1">
-                  <div
-                    className={`p-3 rounded-xl shrink-0 ${
-                      task.status === 'completed'
-                        ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-300'
-                        : 'bg-primary-50 dark:bg-primary-900/20 text-primary-600'
-                    }`}
-                  >
-                    {task.status === 'completed' ? (
-                      <CheckCircle size={24} />
-                    ) : (
-                      <Clock size={24} />
-                    )}
-                  </div>
-
-                  {/* Task Title */}
-                  <div>
-                    <h3
-                      className={`font-bold text-lg text-gray-900 dark:text-white ${
-                        task.status === 'completed'
-                          ? 'line-through decoration-2 decoration-gray-300 dark:decoration-gray-600'
-                          : ''
-                      }`}
-                    >
+        ) : (
+          myTasks.map((task) => (
+            <Card key={task.id} className="p-3">
+              <div className="flex justify-between items-start gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-xs font-semibold text-slate-100">
                       {task.title}
                     </h3>
-
-                    {/* Assignee + Reward */}
-                    <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-md">
-                        <span>{assignee?.avatar}</span>
-                        <span className="font-medium">{assignee?.name}</span>
-                      </div>
-
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                        <DollarSign size={12} /> {task.reward}
-                      </span>
-                    </div>
-
-                    {/* Optional description */}
-                    {task.description && (
-                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        {task.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-3 self-stretch sm:self-center border-t sm:border-t-0 pt-4 sm:pt-0 border-gray-100 dark:border-gray-800">
-                  <span
-                    className={`text-xs font-bold uppercase px-3 py-1.5 rounded-lg tracking-wider ${statusColor}`}
-                  >
-                    {statusText}
-                  </span>
-
-                  <div className="flex gap-2">
-                    {/* Child action: mark as done */}
-                    {currentUser.role === 'child' &&
-                      task.status === 'pending' && (
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            handleStatusChange(task.id, 'waiting_for_approval')
-                          }
-                        >
-                          Mark Done
-                        </Button>
+                    <span className="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-300">
+                      {task.status === 'pending' && (
+                        <>
+                          <Clock className="h-3 w-3 mr-1 text-sky-400" />
+                          Not started
+                        </>
                       )}
+                      {task.status === 'waiting_for_approval' && (
+                        <>
+                          <AlertCircle className="h-3 w-3 mr-1 text-amber-400" />
+                          Waiting for approval
+                        </>
+                      )}
+                      {task.status === 'completed' && (
+                        <>
+                          <CheckCircle className="h-3 w-3 mr-1 text-emerald-400" />
+                          Approved
+                        </>
+                      )}
+                    </span>
+                  </div>
 
-                    {/* Parent actions */}
-                    {currentUser.role === 'parent' && (
-                      <>
-                        {task.status === 'waiting_for_approval' && (
-                          <>
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                handleStatusChange(task.id, 'completed')
-                              }
-                            >
-                              Approve
-                            </Button>
+                  {task.description && (
+                    <p className="text-[11px] text-slate-300 mb-1">
+                      {task.description}
+                    </p>
+                  )}
 
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() =>
-                                handleStatusChange(task.id, 'pending')
-                              }
-                            >
-                              Reject
-                            </Button>
-                          </>
-                        )}
-
-                        {/* Delete task */}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </>
-                    )}
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                    <span className="inline-flex items-center gap-1">
+                      <DollarSign className="h-3 w-3 text-emerald-400" />
+                      {task.reward} kr
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <UserIcon className="h-3 w-3 text-slate-500" />
+                      {assignedToName(task)}
+                    </span>
                   </div>
                 </div>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
 
-// -------------------------------
-// HOME DASHBOARD
-// -------------------------------
+                <div className="flex flex-col items-end gap-2">
+                  {currentUser.role === 'child' && task.status === 'pending' && (
+                    <Button
+                      size="xs"
+                      onClick={() => {
+                        const updated = tasks.map((t) =>
+                          t.id === task.id
+                            ? { ...t, status: 'waiting_for_approval' }
+                            : t
+                        );
+                        onStateChange({ tasks: updated });
+                      }}
+                    >
+                      Mark done
+                    </Button>
+                  )}
 
-export const HomeDashboard: React.FC<{
-  currentUser: User;
-  users: User[];
-  tasks: Task[];
-  onUpdateUsers: (u: User[]) => void;
-  onNavigate: (tab: string) => void;
-}> = ({ currentUser, users, tasks, onUpdateUsers, onNavigate }) => {
-  const getCurrencySymbol = (u?: User) =>
-    u?.currency === 'USD' ? '$' : 'kr';
+                  {currentUser.role === 'parent' &&
+                    task.status === 'waiting_for_approval' && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="xs"
+                          variant="secondary"
+                          onClick={() => {
+                            const updated = tasks.map((t) =>
+                              t.id === task.id
+                                ? { ...t, status: 'completed' }
+                                : t
+                            );
+                            const child = users.find(
+                              (u) => u.id === task.assignedToId
+                            );
 
-  const getPaymentMethodLabel = (pm?: User['paymentMethod']) => {
-    switch (pm) {
-      case 'venmo':
-        return 'Venmo';
-      case 'cashapp':
-        return 'Cash App';
-      default:
-        return 'Swish';
-    }
-  };
+                            if (!child) return;
 
-  const handlePayment = (childId: string) => {
-    const child = users.find((u) => u.id === childId);
-    if (!child || child.balance <= 0) return;
+                            const updatedUsers = users.map((u) =>
+                              u.id === child.id
+                                ? {
+                                    ...u,
+                                    balance: (u.balance ?? 0) + task.reward,
+                                    totalEarned:
+                                      (u.totalEarned ?? 0) + task.reward,
+                                  }
+                                : u
+                            );
 
-    if (!child.phoneNumber) {
-      alert(
-        `Please add a payment handle for ${child.name} in the Family tab.`
-      );
-      return;
-    }
+                            onStateChange({
+                              tasks: updated,
+                              users: updatedUsers,
+                            });
+                          }}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => {
+                            const updated = tasks.map((t) =>
+                              t.id === task.id
+                                ? { ...t, status: 'pending' }
+                                : t
+                            );
+                            onStateChange({ tasks: updated });
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    )}
 
-    const amount = child.balance;
-    let url = '';
-
-    if (child.paymentMethod === 'venmo') {
-      const username = child.phoneNumber.replace('@', '');
-      url = `https://venmo.com/${username}?txn=pay&amount=${amount}&note=Veckopeng`;
-    } else if (child.paymentMethod === 'cashapp') {
-      const tag = child.phoneNumber.replace('$', '');
-      url = `https://cash.app/$${tag}/${amount}`;
-    } else {
-      const data = {
-        version: 1,
-        payee: { value: child.phoneNumber },
-        amount: { value: amount },
-        message: { value: 'Veckopeng' },
-      };
-      url = `swish://payment?data=${encodeURIComponent(
-        JSON.stringify(data)
-      )}`;
-    }
-
-    const confirmed = confirm(
-      `Open ${getPaymentMethodLabel(
-        child.paymentMethod
-      )} to pay ${amount} ${getCurrencySymbol(child)} to ${child.name}?`
-    );
-
-    if (confirmed) {
-      window.location.href = url;
-
-      setTimeout(() => {
-        if (confirm('Did the payment succeed? Reset balance?')) {
-          const updated = users.map((u) =>
-            u.id === childId ? { ...u, balance: 0 } : u
-          );
-          onUpdateUsers(updated);
-        }
-      }, 1000);
-    }
-  };
-
-  // -------------------
-  // CHILD VIEW
-  // -------------------
-
-  if (currentUser.role === 'child') {
-    const myTasks = tasks.filter(
-      (t) => t.assignedToId === currentUser.id && t.status === 'pending'
-    );
-
-    const review = tasks.filter(
-      (t) =>
-        t.assignedToId === currentUser.id &&
-        t.status === 'waiting_for_approval'
-    );
-
-    return (
-      <div className="space-y-8">
-        {/* Header Card */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-emerald-500 to-teal-500 rounded-3xl p-8 text-white shadow-2xl shadow-primary-500/30">
-          <div className="relative z-10">
-            <p className="opacity-80 font-medium mb-1 text-primary-100 uppercase tracking-wider text-sm">
-              Current Balance
-            </p>
-
-            <div className="flex items-baseline gap-2">
-              <h1 className="text-7xl font-extrabold tracking-tight">
-                {currentUser.balance}
-              </h1>
-              <span className="text-3xl font-medium opacity-80">
-                {getCurrencySymbol(currentUser)}
-              </span>
-            </div>
-
-            <div className="mt-6 flex items-center gap-4 text-sm bg-white/10 backdrop-blur-sm p-3 rounded-xl inline-flex">
-              <Wallet className="text-primary-200" size={18} />
-              <span className="opacity-90">
-                Lifetime Earnings:{' '}
-                <span className="font-bold">
-                  {currentUser.totalEarned}{' '}
-                  {getCurrencySymbol(currentUser)}
-                </span>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Child Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card
-            variant="interactive"
-            className="border-l-4 border-l-primary-500"
-            onClick={() => onNavigate('tasks')}
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className="bg-primary-100 dark:bg-primary-900/30 p-3 rounded-xl text-primary-600 dark:text-primary-400">
-                <Clock size={24} />
-              </div>
-              <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                {myTasks.length}
-              </span>
-            </div>
-
-            <h3 className="font-bold text-lg text-gray-900 dark:text-white">
-              Tasks To Do
-            </h3>
-
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              Tasks waiting for you to complete.
-            </p>
-          </Card>
-
-          <Card
-            variant="interactive"
-            className="border-l-4 border-l-amber-500"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-xl text-amber-600 dark:text-amber-400">
-                <CheckCircle size={24} />
-              </div>
-
-              <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                {review.length}
-              </span>
-            </div>
-
-            <h3 className="font-bold text-lg text-gray-900 dark:text-white">
-              In Review
-            </h3>
-
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              Waiting for parent approval.
-            </p>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------
-  // PARENT VIEW
-  // -------------------
-
-  const children = users.filter((u) => u.role === 'child');
-
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-100 tracking-tight flex items-center gap-3">
-            <span className="w-10 h-10 rounded-2xl bg-primary-500/20 flex items-center justify-center text-2xl">
-              {currentUser.avatar}
-            </span>
-
-            <span>{currentUser.name}&apos;s Overview</span>
-          </h2>
-
-          <p className="text-gray-400 text-sm mt-1">
-            Track balances and send allowance payments
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => onNavigate('tasks')}>
-            <CheckSquare size={18} />
-            Manage Tasks
-          </Button>
-          <Button variant="ghost" onClick={() => onNavigate('family')}>
-            <Users size={18} />
-            Manage Family
-          </Button>
-        </div>
-      </div>
-
-      {/* Children Cards */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {children.map((child) => (
-          <Card key={child.id} variant="interactive" className="relative">
-            <div className="absolute right-0 top-0 w-24 h-24 bg-primary-500/10 rounded-bl-full blur-2xl"></div>
-
-            <div className="relative">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="text-4xl">{child.avatar}</div>
-
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
-                    {child.name}
-
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                      Child
-                    </span>
-                  </h3>
-
-                  {child.phoneNumber ? (
-                    <span className="text-xs text-gray-500 dark:text-gray-400 block font-mono tracking-wider">
-                      {child.phoneNumber}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-red-500 flex items-center gap-1 mt-1">
-                      <AlertCircle size={12} />
-                      Missing payment handle
-                    </span>
+                  {currentUser.role === 'parent' && (
+                    <button
+                      onClick={() => handleDeleteTask(task.id)}
+                      className="inline-flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Delete
+                    </button>
                   )}
                 </div>
               </div>
-
-              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 mb-6 border border-gray-100 dark:border-gray-700">
-                <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">
-                  Current Balance
-                </p>
-
-                <div className="flex items-baseline gap-1 text-gray-900 dark:text-white">
-                  <span className="text-4xl font-bold">{child.balance}</span>
-                  <span className="text-lg text-gray-500">
-                    {getCurrencySymbol(child)}
-                  </span>
-                </div>
-              </div>
-
-              <Button
-                fullWidth
-                disabled={child.balance === 0}
-                onClick={() => handlePayment(child.id)}
-                className="bg-gradient-to-r from-[#E53636] to-[#FF3B2E] hover:from-[#ff3b2e] hover:to-[#ff5252] text-white border-none shadow-red-500/20"
-              >
-                {getPaymentMethodLabel(child.paymentMethod)} Payment
-              </Button>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
@@ -738,95 +382,336 @@ export const HomeDashboard: React.FC<{
 // -------------------------------
 
 interface FamilyManagerProps {
+  currentUser: User;
   users: User[];
-  onUpdateUsers: (users: User[]) => void;
+  onStateChange: (newState: Partial<AppState>) => void;
+  onNavigate: (view: 'tasks' | 'family') => void;
 }
 
 export const FamilyManager: React.FC<FamilyManagerProps> = ({
+  currentUser,
   users,
-  onUpdateUsers,
+  onStateChange,
+  onNavigate,
 }) => {
-  const [isAdding, setIsAdding] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  const handleUserCreated = (user: User) => {
-    onUpdateUsers([...users, user]);
-    setIsAdding(false);
+  const parents = users.filter((u) => u.role === 'parent');
+  const children = users.filter((u) => u.role === 'child');
+
+  const selectedUser = selectedUserId
+    ? users.find((u) => u.id === selectedUserId)
+    : null;
+
+  const handleBalanceUpdate = (userId: string, delta: number) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) return;
+
+    const updatedUsers = users.map((u) =>
+      u.id === userId
+        ? {
+            ...u,
+            balance: Math.max(0, (u.balance ?? 0) + delta),
+          }
+        : u
+    );
+
+    onStateChange({ users: updatedUsers });
+  };
+
+  const handlePayOut = (userId: string) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user || (user.balance ?? 0) <= 0) return;
+
+    const updatedUsers = users.map((u) =>
+      u.id === userId
+        ? {
+            ...u,
+            balance: 0,
+          }
+        : u
+    );
+
+    onStateChange({ users: updatedUsers });
   };
 
   const handleRemoveUser = (userId: string) => {
-    if (!confirm('Delete this user?')) return;
-    onUpdateUsers(users.filter((u) => u.id !== userId));
+    if (!confirm('Are you sure you want to remove this family member?')) return;
+    const updatedUsers = users.filter((u) => u.id !== userId);
+    onStateChange({ users: updatedUsers });
+
+    if (selectedUserId === userId) {
+      setSelectedUserId(null);
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-            Family
+          <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
+            <Users className="h-4 w-4 text-emerald-400" />
+            Family overview
           </h2>
-
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            Manage accounts and payment settings.
+          <p className="text-xs text-slate-400">
+            See all family members, balances and manage allowance payments
           </p>
         </div>
 
-        {!isAdding && (
-          <Button onClick={() => setIsAdding(true)}>
-            <UserIcon size={18} /> Add Member
-          </Button>
-        )}
       </div>
 
-      {isAdding ? (
-        <div className="max-w-md mx-auto">
-          <Setup isFirstRun={false} onComplete={handleUserCreated} />
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {users.map((user) => (
-            <Card key={user.id} className="relative">
-              <div className="absolute right-0 top-0 w-20 h-20 bg-primary-500/5 rounded-bl-full blur-2xl" />
+      {/* Children Cards */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {children.map((child) => (
+          <Card key={child.id} variant="interactive" className="relative">
+            <div className="absolute right-0 top-0 w-24 h-24 bg-primary-500/10 rounded-bl-full blur-2xl"></div>
 
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="text-4xl">{user.avatar}</div>
-
-                  <div>
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
-                      {user.name}
-
-                      <span
-                        className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                          user.role === 'parent'
-                            ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
-                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                        }`}
-                      >
-                        {user.role}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="h-7 w-7 rounded-full bg-slate-800 flex items-center justify-center">
+                      <span className="text-sm">
+                        {child.avatar || '👤'}
                       </span>
-                    </h3>
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-semibold text-slate-100 flex items-center gap-1">
+                        {child.name}
+                      </h3>
+                      <p className="text-[10px] text-slate-400">
+                        {child.role === 'child' ? 'Child' : 'Parent'}
+                      </p>
+                    </div>
+                  </div>
 
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Balance: {user.balance}
-                      {user.currency === 'USD' ? '$' : ' kr'}
-                    </p>
+                  <div className="flex flex-col gap-1 text-[11px] text-slate-300">
+                    <div className="inline-flex items-center gap-1">
+                      <Wallet className="h-3 w-3 text-emerald-400" />
+                      <span className="font-semibold text-emerald-300">
+                        {child.balance ?? 0} kr
+                      </span>
+                      <span className="text-slate-500 ml-1">current balance</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1 text-slate-400">
+                      <DollarSign className="h-3 w-3 text-sky-400" />
+                      <span>
+                        Earned{' '}
+                        <span className="font-semibold text-sky-300">
+                          {child.totalEarned ?? 0} kr
+                        </span>{' '}
+                        total
+                      </span>
+                    </div>
+                    {child.phoneNumber && (
+                      <div className="inline-flex items-center gap-1 text-slate-400">
+                        <Phone className="h-3 w-3 text-slate-500" />
+                        <span>{child.phoneNumber}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center gap-3 mt-4">
+                <button
+                  className="text-xs text-slate-400 hover:text-slate-100"
+                  onClick={() => setSelectedUserId(child.id)}
+                >
+                  Details
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800 mt-1 pt-2">
+                <div className="flex gap-1">
+                  <Button
+                    size="xs"
+                    variant="secondary"
+                    onClick={() => handleBalanceUpdate(child.id, 10)}
+                  >
+                    +10 kr
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="secondary"
+                    onClick={() => handleBalanceUpdate(child.id, 20)}
+                  >
+                    +20 kr
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="secondary"
+                    onClick={() => handleBalanceUpdate(child.id, -10)}
+                  >
+                    -10 kr
+                  </Button>
+                </div>
+                <Button
+                  size="xs"
+                  variant="primary"
+                  onClick={() => handlePayOut(child.id)}
+                  disabled={!child.balance || child.balance <= 0}
+                >
+                  Pay out
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Parents List */}
+      {parents.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-slate-200 mb-2 flex items-center gap-1">
+            <UserIcon className="h-3 w-3 text-slate-400" />
+            Parents
+          </h3>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {parents.map((parent) => (
+              <Card key={parent.id} className="p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-full bg-slate-800 flex items-center justify-center">
+                    <span className="text-sm">{parent.avatar || '👤'}</span>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-slate-100">
+                      {parent.name}
+                    </div>
+                    <div className="text-[10px] text-slate-400">Parent</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleRemoveUser(user.id)}
-                    className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-600"
+                    onClick={() => handleRemoveUser(parent.id)}
+                    className="inline-flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300"
                   >
                     <Trash2 size={14} />
                     Remove
                   </button>
 
-                  {user.phoneNumber && (
+                  {parent.phoneNumber && (
                     <a
-                      href={`tel:${user.phoneNumber}`}
+                      href={`tel:${parent.phoneNumber}`}
+                      className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
+                    >
+                      <Phone size={12} />
+                      Call
+                    </a>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Selected child details (sidebar/modal) */}
+      {selectedUser && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/80 backdrop-blur">
+          <div className="w-full max-w-md p-4">
+            <Card>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                    <UserIcon className="h-4 w-4 text-emerald-400" />
+                    {selectedUser.name}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {selectedUser.role === 'child' ? 'Child' : 'Parent'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedUserId(null)}
+                  className="p-1 rounded-full hover:bg-slate-800 text-slate-400 hover:text-slate-100"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex flex-col gap-1 text-[11px] text-slate-300">
+                  <div className="inline-flex items-center gap-1">
+                    <Wallet className="h-3 w-3 text-emerald-400" />
+                    <span className="font-semibold text-emerald-300">
+                      {selectedUser.balance ?? 0} kr
+                    </span>
+                    <span className="text-slate-500 ml-1">
+                      current balance
+                    </span>
+                  </div>
+                  <div className="inline-flex items-center gap-1 text-slate-400">
+                    <DollarSign className="h-3 w-3 text-sky-400" />
+                    <span>
+                      Earned{' '}
+                      <span className="font-semibold text-sky-300">
+                        {selectedUser.totalEarned ?? 0} kr
+                      </span>{' '}
+                      total
+                    </span>
+                  </div>
+                  {selectedUser.phoneNumber && (
+                    <div className="inline-flex items-center gap-1 text-slate-400">
+                      <Phone className="h-3 w-3 text-slate-500" />
+                      <span>{selectedUser.phoneNumber}</span>
+                    </div>
+                  )}
+                </div>
+
+                {selectedUser.role === 'child' && (
+                  <div className="flex flex-col gap-2 pt-2 border-t border-slate-800">
+                    <div className="text-[11px] text-slate-400">
+                      Quick balance adjustments
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="xs"
+                        variant="secondary"
+                        onClick={() => handleBalanceUpdate(selectedUser.id, 10)}
+                      >
+                        +10 kr
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="secondary"
+                        onClick={() => handleBalanceUpdate(selectedUser.id, 20)}
+                      >
+                        +20 kr
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="secondary"
+                        onClick={() => handleBalanceUpdate(selectedUser.id, -10)}
+                      >
+                        -10 kr
+                      </Button>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        size="xs"
+                        variant="primary"
+                        onClick={() => handlePayOut(selectedUser.id)}
+                        disabled={
+                          !selectedUser.balance || selectedUser.balance <= 0
+                        }
+                      >
+                        Pay out to {selectedUser.name}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center pt-2 border-t border-slate-800 mt-2">
+                  <button
+                    onClick={() => handleRemoveUser(selectedUser.id)}
+                    className="inline-flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300"
+                  >
+                    <Trash2 size={14} />
+                    Remove from family
+                  </button>
+
+                  {selectedUser.phoneNumber && (
+                    <a
+                      href={`tel:${selectedUser.phoneNumber}`}
                       className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
                     >
                       <Phone size={12} />
@@ -836,8 +721,59 @@ export const FamilyManager: React.FC<FamilyManagerProps> = ({
                 </div>
               </div>
             </Card>
-          ))}
+          </div>
         </div>
+      )}
+    </div>
+  );
+};
+
+// -------------------------------
+// ROOT VIEW DECIDER
+// -------------------------------
+
+interface RootViewProps {
+  state: AppState;
+  currentUser: User | null;
+  onStateChange: (update: Partial<AppState>) => void;
+  onNavigate: (view: 'tasks' | 'family') => void;
+}
+
+export const RootView: React.FC<RootViewProps> = ({
+  state,
+  currentUser,
+  onStateChange,
+  onNavigate,
+}) => {
+  if (!state.users.length) {
+    return <Setup onStateChange={onStateChange} />;
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <p className="text-sm text-slate-300">
+          Please sign in to see your family&apos;s Veckopeng.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <TaskManager
+        currentUser={currentUser}
+        users={state.users}
+        tasks={state.tasks}
+        onStateChange={onStateChange}
+      />
+      {currentUser.role === 'parent' && (
+        <FamilyManager
+          currentUser={currentUser}
+          users={state.users}
+          onStateChange={onStateChange}
+          onNavigate={onNavigate}
+        />
       )}
     </div>
   );
