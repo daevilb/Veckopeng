@@ -1,6 +1,12 @@
+// -------------------------------
+// TYPES FOR VECKOPENG v1.1
+// -------------------------------
+
 export type Role = 'parent' | 'child';
+
 export type PaymentMethod = 'swish' | 'venmo' | 'cashapp';
 export type Currency = 'SEK' | 'USD';
+
 export type TaskStatus = 'pending' | 'waiting_for_approval' | 'completed';
 
 export interface User {
@@ -8,12 +14,12 @@ export interface User {
   name: string;
   role: Role;
   pin: string;
-  avatar: string; // Emoji char
-  phoneNumber?: string; // phone / username / $cashtag depending on payment method
-  paymentMethod?: PaymentMethod;
-  currency?: Currency;
+  avatar: string; // Emoji avatar
+  phoneNumber?: string; // Swish, Venmo @username, CashApp $cashtag
+  paymentMethod?: PaymentMethod; // Default handled in UI
+  currency?: Currency; // Default handled in UI
   balance: number; // Current unpaid allowance
-  totalEarned: number; // Lifetime earnings
+  totalEarned: number; // Lifetime cumulative earnings
 }
 
 export interface Task {
@@ -33,6 +39,7 @@ export interface AppState {
   theme: 'light' | 'dark';
 }
 
+// Default application state
 export const DEFAULT_STATE: AppState = {
   users: [],
   tasks: [],
