@@ -15,7 +15,7 @@ A modern, family-friendly app for managing chores, weekly allowance, and payment
 - Track each child’s weekly allowance
 - Trigger payment directly from their phone’s payment app
 
-Children complete tasks ➜ parents approve them ➜ the reward is added to the child’s balance.  
+Children complete tasks → parents approve them → the reward is added to the child’s balance.  
 At the end of the week, the parent taps **Pay**, and Veckopeng opens the payment app with the **phone number**, **amount**, and optional **message** pre-filled.
 
 Veckopeng is built for **self-hosting** using Docker and keeps all your data in your own environment.
@@ -77,7 +77,7 @@ This allows Veckopeng to open a payment app on your device with:
 
 The core idea is to keep the payment flow:
 
-> *Tap once in Veckopeng ➜ your payment app opens ➜ confirm ➜ done.*
+> Tap once in Veckopeng → your payment app opens → confirm → done.
 
 ---
 
@@ -102,42 +102,33 @@ Inside the app, a small, discrete **“Buy Me a Coffee”** link is available fo
 
 ## 🚀 Getting Started
 
-### 1. Clone the repository
-
 ```bash
+# 1. Clone the repository
 git clone https://github.com/daevilb/veckopeng.git
 cd veckopeng
-2. Start via Docker Compose
-Make sure you have Docker and Docker Compose installed, then run:
 
-bash
-Copy code
+# 2. Start via Docker Compose
+# Make sure Docker and Docker Compose are installed, then run:
 docker compose up -d
-3. Open the app
-Open your browser and go to:
 
-text
-Copy code
-http://localhost:3000
-On first launch, you will:
+# 3. Open the app
+# Then open your browser and go to:
+# http://localhost:3000
 
-Create the first parent account
-
-Set up your family members
-
-Start creating tasks and rewards
+# On first launch, you will:
+#  - Create the first parent account
+#  - Set up your family members
+#  - Start creating tasks and rewards
 
 ⚙️ Configuration
+
 Veckopeng is designed to run with sensible defaults, but you can customize it using environment variables.
 
 Variable	Default	Description
 VP_PORT	3000	Port the app listens on
 VP_DATA_PATH	/data	Directory used for persistent data
 
-Example Docker Compose snippet (conceptual):
-
-yaml
-Copy code
+Example Docker Compose snippet:
 services:
   veckopeng:
     image: veckopeng:latest
@@ -150,9 +141,11 @@ services:
     volumes:
       - ./data:/data
     restart: unless-stopped
+
 Adapt the image name and paths to match your actual build/publish setup.
 
 🧱 Tech Stack
+
 Frontend: React + TypeScript
 
 State & Storage: Local persistence (file/volume-backed)
@@ -166,6 +159,7 @@ Payments: Deep link / URL scheme based payment flows (Swish-style and similar)
 UI: Responsive layout for both mobile and desktop
 
 🤝 Contributing
+
 Contributions, ideas, and feedback are very welcome!
 
 You can:
@@ -181,6 +175,7 @@ The long-term goal is to make Veckopeng:
 As smooth and fun as possible for families, while remaining simple to self-host.
 
 ☕ Support
+
 If you enjoy using Veckopeng and want to support the ongoing development:
 
 Use the Buy Me a Coffee link available in the parent view inside the app
@@ -192,11 +187,14 @@ Provide feedback and feature ideas via issues
 Every bit of support helps to keep the project evolving.
 
 📜 License
+
 Veckopeng is open source and released under the GNU Affero General Public License v3 (AGPL-3.0).
 
-See LICENSE for the full license text.
+See LICENSE
+ for the full license text.
 
-For commercial use cases, including internal business use that does not wish to follow AGPL terms, a separate commercial license is available. See COMMERCIAL_LICENSE.md for details.
+For commercial use cases, including internal business use that does not wish to follow AGPL terms, a separate commercial license is available. See COMMERCIAL_LICENSE.md
+ for details.
 
 In short:
 
@@ -207,6 +205,7 @@ In short:
 🔒 Commercial use outside AGPL terms requires a separate agreement
 
 🛣️ Roadmap
+
 I’m actively working on improving Veckopeng and look forward to:
 
 Enhancing the overall UI/UX and layout, especially on larger screens
@@ -220,3 +219,13 @@ Supporting additional payment providers via deep links
 Adding more quality-of-life features for families and self-hosters
 
 If you have ideas or features you would love to see, please open an issue or reach out — the goal is to make this app as good and useful as possible for real families.
+
+
+
+
+
+
+
+
+
+
