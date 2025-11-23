@@ -15,12 +15,11 @@ import {
   Wallet,
   CheckSquare,
   Smartphone,
-  ExternalLink,
   User as UserIcon,
 } from 'lucide-react';
 import { generateId } from '../utils/id';
 
-// --- TASK MANAGER COMPONENT ---
+// ================ Task Manager ================
 
 interface TaskManagerProps {
   currentUser: User;
@@ -40,7 +39,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [newTask, setNewTask] = useState<{
     title: string;
-    description?: string;
+    description: string;
     reward: number;
     assignedToId: string;
   }>({
@@ -51,29 +50,28 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   });
 
   const isParent = currentUser.role === 'parent';
+  const children = users.filter((u) => u.role === 'child');
 
   const visibleTasks = isParent
     ? tasks
     : tasks.filter((t) => t.assignedToId === currentUser.id);
 
-  const children = users.filter((u) => u.role === 'child');
-
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isParent) return;
     if (!newTask.title || !newTask.assignedToId) return;
 
     const task: Task = {
       id: generateId(),
       title: newTask.title.trim(),
-      description: newTask.description?.trim() || undefined,
+      description: newTask.description.trim(),
       reward: Number(newTask.reward) || 0,
       assignedToId: newTask.assignedToId,
-      createdAt: Date.now(),
       status: 'pending' as TaskStatus,
+      createdAt: Date.now(),
     };
 
     onStateChange({ tasks: [...tasks, task] });
+
     setIsCreating(false);
     setNewTask({
       title: '',
@@ -94,29 +92,23 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     const updatedTasks = tasks.map((t) => {
       if (t.id !== taskId) return t;
 
-      // If a task is approved by parent (waiting_for_approval -> completed),
-      // credit the child's balance.
+      // When parent approves a task (waiting_for_approval -> completed),
+      // add the reward to the child's balance.
       if (status === 'completed' && t.status === 'waiting_for_approval') {
-        const childIndex = updatedUsers.findIndex(
-          (u) => u.id === t.assignedToId,
-        );
-        if (childIndex !== -1) {
-          const child = updatedUsers[childIndex];
-          updatedUsers[childIndex] = {
+        const idx = updatedUsers.findIndex((u) => u.id === t.assignedToId);
+        if (idx !== -1) {
+          const child = updatedUsers[idx];
+          updatedUsers[idx] = {
             ...child,
-            balance: (child.balance || 0) + (t.reward || 0),
+            balance: (child.balance ?? 0) + (t.reward ?? 0),
           };
         }
       }
 
-      // If reverting back to pending, just reset completedAt
-      const completedAt =
-        status === 'completed' ? Date.now() : (t.completedAt as number | undefined);
-
       return {
         ...t,
         status,
-        completedAt,
+        completedAt: status === 'completed' ? Date.now() : t.completedAt,
       };
     });
 
@@ -180,6 +172,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 Create New Task
               </h3>
               <button
+                type="button"
                 onClick={() => setIsCreating(false)}
                 className="rounded-full p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
               >
@@ -204,7 +197,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
               <div className="md:col-span-6">
                 <Input
                   label="Description (optional)"
-                  placeholder="Add some details to the task"
+                  placeholder="Add more details"
                   value={newTask.description}
                   onChange={(e) =>
                     setNewTask((t) => ({ ...t, description: e.target.value }))
@@ -235,7 +228,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                   onChange={(e) =>
                     setNewTask((t) => ({ ...t, assignedToId: e.target.value }))
                   }
-                  className="block w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/40 outline-none"
+                  className="block w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/40 outline-none"
                 >
                   <option value="">Choose a family member</option>
                   {children.map((child) => (
@@ -253,7 +246,10 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!newTask.title || !newTask.assignedToId}>
+                <Button
+                  type="submit"
+                  disabled={!newTask.title || !newTask.assignedToId}
+                >
                   <CheckCircle size={18} />
                   Save Task
                 </Button>
@@ -266,7 +262,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       {/* Task list */}
       {visibleTasks.length === 0 ? (
         <Card className="flex flex-col items-center justify-center py-12 text-center space-y-3">
-          <AlertCircle className="w-8 h-8 text-gray-400 mb-1" />
+          <CheckSquare className="w-10 h-10 text-gray-300 dark:text-gray-600" />
           <h3 className="font-semibold text-gray-800 dark:text-gray-100">
             No tasks yet
           </h3>
@@ -290,7 +286,14 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
               isParent && task.status === 'waiting_for_approval';
 
             return (
-              <Card key={task.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <Card
+                key={task.id}
+                className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 ${
+                  task.status === 'completed'
+                    ? 'opacity-80 hover:opacity-100'
+                    : ''
+                }`}
+              >
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span
@@ -352,7 +355,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                   )}
                   {canReject && (
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       onClick={() =>
                         handleStatusChange(task.id, 'pending')
                       }
@@ -380,66 +383,27 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   );
 };
 
-// --- HOME DASHBOARD ---
+// ================ Home Dashboard ================
 
-export const HomeDashboard: React.FC<{
+interface HomeDashboardProps {
   currentUser: User;
   users: User[];
   tasks: Task[];
-  onUpdateUsers: (u: User[]) => void;
+  onUpdateUsers: (users: User[]) => void;
   onNavigate: (tab: string) => void;
-}> = ({ currentUser, users, tasks, onUpdateUsers, onNavigate }) => {
+}
+
+export const HomeDashboard: React.FC<HomeDashboardProps> = ({
+  currentUser,
+  users,
+  tasks,
+  onUpdateUsers,
+  onNavigate,
+}) => {
   const isParent = currentUser.role === 'parent';
-  const children = users.filter((u) => u.role === 'child');
-  const myTasks = tasks.filter((t) => t.assignedToId === currentUser.id);
-  const waitingTasks = tasks.filter(
-    (t) => t.status === 'waiting_for_approval',
-  );
-
-  const handlePayment = (childId: string) => {
-    const child = users.find((u) => u.id === childId);
-    if (!child || (child.balance || 0) <= 0) return;
-
-    if (!child.phoneNumber) {
-      alert(
-        `Please add a phone number for ${child.name} in the Family tab to use Swish.`,
-      );
-      return;
-    }
-
-    const paymentData = {
-      version: 1,
-      payee: { value: child.phoneNumber },
-      amount: { value: child.balance },
-      message: { value: 'Veckopeng' },
-    };
-
-    const url = `swish://payment?data=${encodeURIComponent(
-      JSON.stringify(paymentData),
-    )}`;
-
-    const confirmed = window.confirm(
-      `Open Swish to pay ${child.balance} kr to ${child.name} (${child.phoneNumber})?`,
-    );
-
-    if (confirmed) {
-      window.location.href = url;
-      setTimeout(() => {
-        if (
-          window.confirm(
-            'Did the payment go through successfully? Press OK to reset balance to 0.',
-          )
-        ) {
-          const updated = users.map((u) =>
-            u.id === childId ? { ...u, balance: 0 } : u,
-          );
-          onUpdateUsers(updated);
-        }
-      }, 1500);
-    }
-  };
 
   if (!isParent) {
+    const myTasks = tasks.filter((t) => t.assignedToId === currentUser.id);
     const pending = myTasks.filter((t) => t.status === 'pending').length;
     const waiting = myTasks.filter(
       (t) => t.status === 'waiting_for_approval',
@@ -535,10 +499,57 @@ export const HomeDashboard: React.FC<{
   }
 
   // Parent view
+  const children = users.filter((u) => u.role === 'child');
   const totalBalance = children.reduce(
-    (sum, c) => sum + (c.balance || 0),
+    (sum, c) => sum + (c.balance ?? 0),
     0,
   );
+  const waitingTasks = tasks.filter(
+    (t) => t.status === 'waiting_for_approval',
+  );
+
+  const handlePayment = (childId: string) => {
+    const child = users.find((u) => u.id === childId);
+    if (!child || (child.balance ?? 0) <= 0) return;
+
+    if (!child.phoneNumber) {
+      alert(
+        `Please add a phone number for ${child.name} in the Family tab to use Swish.`,
+      );
+      return;
+    }
+
+    const paymentData = {
+      version: 1,
+      payee: { value: child.phoneNumber },
+      amount: { value: child.balance },
+      message: { value: 'Veckopeng' },
+    };
+
+    const url = `swish://payment?data=${encodeURIComponent(
+      JSON.stringify(paymentData),
+    )}`;
+
+    const confirmed = window.confirm(
+      `Open Swish to pay ${child.balance} kr to ${child.name} (${child.phoneNumber})?`,
+    );
+
+    if (confirmed) {
+      window.location.href = url;
+      setTimeout(() => {
+        if (
+          window.confirm(
+            'Did the payment go through successfully? Press OK to reset balance to 0.',
+          )
+        ) {
+          const updated = users.map((u) =>
+            u.id === childId ? { ...u, balance: 0 } : u,
+          );
+          onUpdateUsers(updated);
+        }
+      }, 1500);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -600,7 +611,7 @@ export const HomeDashboard: React.FC<{
         >
           <div className="flex items-center justify-between">
             <div className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
-              <UsersIcon />
+              <UserIcon className="w-5 h-5" />
             </div>
             <span className="text-2xl font-bold text-gray-900 dark:text-white">
               {children.length}
@@ -664,7 +675,7 @@ export const HomeDashboard: React.FC<{
                     <div className="text-right">
                       <div className="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 dark:text-white">
                         <DollarSign className="w-4 h-4" />
-                        {child.balance || 0} kr
+                        {child.balance ?? 0} kr
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         Current balance
@@ -689,7 +700,7 @@ export const HomeDashboard: React.FC<{
 
                   <div className="flex flex-wrap gap-2 justify-between items-center pt-2 border-t border-gray-100 dark:border-gray-800 mt-2">
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       onClick={() => onNavigate('tasks')}
                     >
                       <CheckSquare className="w-4 h-4" />
@@ -714,12 +725,17 @@ export const HomeDashboard: React.FC<{
   );
 };
 
-// --- FAMILY MANAGER ---
+// ================ Family Manager ================
 
-export const FamilyManager: React.FC<{
+interface FamilyManagerProps {
   users: User[];
-  onUpdateUsers: (u: User[]) => void;
-}> = ({ users, onUpdateUsers }) => {
+  onUpdateUsers: (users: User[]) => void;
+}
+
+export const FamilyManager: React.FC<FamilyManagerProps> = ({
+  users,
+  onUpdateUsers,
+}) => {
   const [isAdding, setIsAdding] = useState(false);
 
   const handleAddUser = (newUser: User) => {
@@ -748,14 +764,12 @@ export const FamilyManager: React.FC<{
       </div>
 
       {isAdding && (
-        <div className="animate-in slide-in-from-top-4 fade-in duration-300">
-          <div className="max-w-md mx-auto">
-            <Setup isFirstRun={false} onComplete={handleAddUser} />
-            <div className="text-center mt-4">
-              <Button variant="ghost" onClick={() => setIsAdding(false)}>
-                Cancel
-              </Button>
-            </div>
+        <div className="animate-in slide-in-from-top-4 fade-in duration-300 max-w-md mx-auto">
+          <Setup isFirstRun={false} onComplete={handleAddUser} />
+          <div className="text-center mt-4">
+            <Button variant="ghost" onClick={() => setIsAdding(false)}>
+              Cancel
+            </Button>
           </div>
         </div>
       )}
@@ -812,6 +826,3 @@ export const FamilyManager: React.FC<{
     </div>
   );
 };
-
-// Simple icon wrapper for users in the dashboard card
-const UsersIcon: React.FC = () => <UserIcon className="w-5 h-5" />;
