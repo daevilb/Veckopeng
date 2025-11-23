@@ -120,7 +120,8 @@ interface AppStatePayload {
   theme?: 'light' | 'dark' | string;
 }
 
-// Read current state from DB and return in AppState shape
+// ---------- Legacy-style state helpers (for /api/state) ----------
+
 const readStateFromDb = () => {
   const familyId = getDefaultFamilyId();
 
@@ -243,9 +244,34 @@ initDb();
 migrateFromJsonIfNeeded();
 
 // -----------------------
+// REST-style helpers
+// -----------------------
+
+const getUserById = (id: string): StoredUser | undefined => {
+  const familyId = getDefaultFamilyId();
+  const row = db
+    .prepare(
+      'SELECT id, name, role, pin, avatar, phoneNumber, paymentMethod, currency, balance, totalEarned, createdAt, updatedAt, familyId FROM users WHERE id = ? AND familyId = ?'
+    )
+    .get(id, familyId) as StoredUser | undefined;
+  return row;
+};
+
+const getTaskById = (id: string): StoredTask | undefined => {
+  const familyId = getDefaultFamilyId();
+  const row = db
+    .prepare(
+      'SELECT id, title, description, reward, assignedToId, status, createdAt, completedAt, familyId FROM tasks WHERE id = ? AND familyId = ?'
+    )
+    .get(id, familyId) as StoredTask | undefined;
+  return row;
+};
+
+// -----------------------
 // Routes
 // -----------------------
 
+// Legacy-style state endpoints (kept for compatibility)
 app.get('/api/state', (req, res) => {
   try {
     const state = readStateFromDb();
@@ -272,8 +298,212 @@ app.post('/api/state', (req, res) => {
   }
 });
 
+// --- New REST-style APIs ---
+
+// Get all users (for family)
+app.get('/api/users', (req, res) => {
+  try {
+    const familyId = getDefaultFamilyId();
+    const users = db
+      .prepare(
+        'SELECT id, name, role, pin, avatar, phoneNumber, paymentMethod, currency, balance, totalEarned, createdAt, updatedAt FROM users WHERE familyId = ? ORDER BY createdAt ASC'
+      )
+      .all(familyId);
+    res.json(users);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get all tasks (for family)
+app.get('/api/tasks', (req, res) => {
+  try {
+    const familyId = getDefaultFamilyId();
+    const tasks = db
+      .prepare(
+        'SELECT id, title, description, reward, assignedToId, status, createdAt, completedAt FROM tasks WHERE familyId = ? ORDER BY createdAt ASC'
+      )
+      .all(familyId);
+    res.json(tasks);
+  } catch (err) {
+    console.error('Error fetching tasks:', err);
+    res.status(500).json({ error: 'Failed to fetch tasks' });
+  }
+});
+
+// Create a task
+app.post('/api/tasks', (req, res) => {
+  try {
+    const body = req.body as {
+      id: string;
+      title: string;
+      description?: string;
+      reward: number;
+      assignedToId: string;
+      status?: string;
+      createdAt?: number;
+    };
+
+    if (!body || typeof body !== 'object') {
+      return res.status(400).json({ error: 'Invalid body' });
+    }
+
+    const { id, title, description, reward, assignedToId } = body;
+
+    if (!id || !title || !assignedToId) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const rewardInt = Number.isFinite(body.reward) ? Math.floor(body.reward) : 0;
+    const now = Math.floor(Date.now() / 1000);
+    const createdAt = typeof body.createdAt === 'number' ? body.createdAt : now;
+    const status = body.status ?? 'pending';
+    const familyId = getDefaultFamilyId();
+
+    // Basic sanity: referenced user must exist
+    const user = getUserById(assignedToId);
+    if (!user) {
+      return res.status(400).json({ error: 'Assigned user not found' });
+    }
+
+    db.prepare(
+      'INSERT INTO tasks (id, familyId, title, description, reward, assignedToId, status, createdAt, completedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(
+      id,
+      familyId,
+      title,
+      description ?? null,
+      rewardInt,
+      assignedToId,
+      status,
+      createdAt,
+      null
+    );
+
+    const task = getTaskById(id);
+    res.status(201).json(task);
+  } catch (err) {
+    console.error('Error creating task:', err);
+    res.status(500).json({ error: 'Failed to create task' });
+  }
+});
+
+// Update task (partial) - e.g. status change
+app.patch('/api/tasks/:id', (req, res) => {
+  const taskId = req.params.id;
+
+  try {
+    const existing = getTaskById(taskId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const body = req.body as {
+      status?: string;
+      title?: string;
+      description?: string;
+      reward?: number;
+      completedAt?: number | null;
+    };
+
+    const updates: Partial<StoredTask> = {};
+
+    if (typeof body.status === 'string') {
+      updates.status = body.status;
+    }
+    if (typeof body.title === 'string') {
+      updates.title = body.title;
+    }
+    if (typeof body.description === 'string') {
+      updates.description = body.description;
+    }
+    if (typeof body.reward === 'number' && Number.isFinite(body.reward)) {
+      updates.reward = Math.floor(body.reward);
+    }
+    if (typeof body.completedAt === 'number') {
+      updates.completedAt = body.completedAt;
+    }
+    if (body.completedAt === null) {
+      updates.completedAt = null;
+    }
+
+    const merged: StoredTask = {
+      ...existing,
+      ...updates,
+    };
+
+    db.prepare(
+      'UPDATE tasks SET title = ?, description = ?, reward = ?, status = ?, completedAt = ? WHERE id = ? AND familyId = ?'
+    ).run(
+      merged.title,
+      merged.description ?? null,
+      merged.reward,
+      merged.status,
+      merged.completedAt ?? null,
+      merged.id,
+      merged.familyId
+    );
+
+    const updated = getTaskById(taskId);
+    res.json(updated);
+  } catch (err) {
+    console.error('Error updating task:', err);
+    res.status(500).json({ error: 'Failed to update task' });
+  }
+});
+
+// Approve task: mark as approved + update child balance atomically
+app.post('/api/tasks/:id/approve', (req, res) => {
+  const taskId = req.params.id;
+
+  try {
+    const existing = getTaskById(taskId);
+    if (!existing) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const user = getUserById(existing.assignedToId);
+    if (!user) {
+      return res.status(400).json({ error: 'Assigned user not found' });
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+
+    const tx = db.transaction(() => {
+      // Update task status + completedAt if not set
+      db.prepare(
+        'UPDATE tasks SET status = ?, completedAt = COALESCE(completedAt, ?) WHERE id = ? AND familyId = ?'
+      ).run('approved', now, existing.id, existing.familyId);
+
+      // Update user balance and totalEarned
+      const newBalance = (user.balance ?? 0) + (existing.reward ?? 0);
+      const newTotalEarned = (user.totalEarned ?? 0) + (existing.reward ?? 0);
+
+      db.prepare(
+        'UPDATE users SET balance = ?, totalEarned = ?, updatedAt = ? WHERE id = ? AND familyId = ?'
+      ).run(newBalance, newTotalEarned, now, user.id, user.familyId);
+    });
+
+    tx();
+
+    const updatedTask = getTaskById(taskId);
+    const updatedUser = getUserById(existing.assignedToId);
+
+    res.json({
+      task: updatedTask,
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error('Error approving task:', err);
+    res.status(500).json({ error: 'Failed to approve task' });
+  }
+});
+
+// Simple health check
 app.get('/health', (req, res) => res.send('OK'));
 
+// Start server
 app.listen(PORT, () => {
   console.log(`Backend running on http://0.0.0.0:${PORT}`);
   console.log(`SQLite storage: ${DB_FILE}`);
