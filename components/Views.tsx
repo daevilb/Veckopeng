@@ -5,8 +5,20 @@ import { Setup } from './Auth';
 import { Input } from './Input';
 import { Card } from './Card';
 import { 
-  CheckCircle, Clock, DollarSign, Trash2, Plus, X, ArrowRight, 
-  User as UserIcon, ExternalLink, AlertCircle, Wallet, CheckSquare, Phone 
+  CheckCircle,
+  Clock,
+  DollarSign,
+  Trash2,
+  Plus,
+  X,
+  ArrowRight,
+  User as UserIcon,
+  ExternalLink,
+  AlertCircle,
+  Wallet,
+  CheckSquare,
+  Phone,
+  Users
 } from 'lucide-react';
 import { generateId } from '../utils/id';
 
@@ -72,10 +84,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     setIsCreating(false);
   };
 
-  const handleStatusChange = (
-    taskId: string,
-    newStatus: Task['status']
-  ) => {
+  const handleStatusChange = (taskId: string, newStatus: Task['status']) => {
     const updatedTasks = tasks.map((task) => {
       if (task.id === taskId) {
         if (currentUser.role === 'parent') {
@@ -99,8 +108,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         return {
           ...task,
           status: newStatus,
-          completedAt:
-            newStatus === 'completed' ? Date.now() : undefined,
+          completedAt: newStatus === 'completed' ? Date.now() : undefined,
         };
       }
       return task;
@@ -141,24 +149,22 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <div className="inline-flex rounded-full bg-gray-100 dark:bg-gray-900 p-1">
-          {['all', 'pending', 'waiting_for_approval', 'completed'].map(
-            (f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f as any)}
-                className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
-                  filter === f
-                    ? 'bg-primary-500 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-300'
-                }`}
-              >
-                {f === 'all' && 'All'}
-                {f === 'pending' && 'To Do'}
-                {f === 'waiting_for_approval' && 'In Review'}
-                {f === 'completed' && 'Completed'}
-              </button>
-            )
-          )}
+          {['all', 'pending', 'waiting_for_approval', 'completed'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f as any)}
+              className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${
+                filter === f
+                  ? 'bg-primary-500 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300'
+              }`}
+            >
+              {f === 'all' && 'All'}
+              {f === 'pending' && 'To Do'}
+              {f === 'waiting_for_approval' && 'In Review'}
+              {f === 'completed' && 'Completed'}
+            </button>
+          ))}
         </div>
 
         <div className="flex items-center gap-2">
@@ -201,10 +207,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             </div>
 
             {/* Task Form */}
-            <form
-              onSubmit={handleCreate}
-              className="grid grid-cols-1 md:grid-cols-12 gap-4"
-            >
+            <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <div className="md:col-span-6">
                 <Input
                   required
@@ -300,6 +303,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             </p>
           </Card>
         )}
+
         {filteredTasks.map((task) => {
           const assignee = users.find((u) => u.id === task.assignedToId);
 
@@ -621,9 +625,11 @@ export const HomeDashboard: React.FC<{
               In Review
             </h3>
 
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              Waiting for parent approval.
-            </p>
+            <>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                Waiting for parent approval.
+              </p>
+            </>
           </Card>
         </div>
       </div>
@@ -645,7 +651,7 @@ export const HomeDashboard: React.FC<{
               {currentUser.avatar}
             </span>
 
-            <span>{currentUser.name}'s Overview</span>
+            <span>{currentUser.name}&apos;s Overview</span>
           </h2>
 
           <p className="text-gray-400 text-sm mt-1">
@@ -653,10 +659,16 @@ export const HomeDashboard: React.FC<{
           </p>
         </div>
 
-        <Button variant="secondary" onClick={() => onNavigate('tasks')}>
-          <CheckSquare size={18} />
-          Manage Tasks
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => onNavigate('tasks')}>
+            <CheckSquare size={18} />
+            Manage Tasks
+          </Button>
+          <Button variant="ghost" onClick={() => onNavigate('family')}>
+            <Users size={18} />
+            Manage Family
+          </Button>
+        </div>
       </div>
 
       {/* Children Cards */}
