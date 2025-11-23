@@ -21,6 +21,180 @@ import {
 import { generateId } from '../utils/id';
 
 // -------------------------------
+// HOME DASHBOARD (OVERVIEW)
+// -------------------------------
+
+interface HomeDashboardProps {
+  currentUser: User;
+  users: User[];
+  tasks: Task[];
+  onUpdateUsers: (users: User[]) => void;
+  onNavigate: (view: 'tasks' | 'family') => void;
+}
+
+export const HomeDashboard: React.FC<HomeDashboardProps> = ({
+  currentUser,
+  users,
+  tasks,
+  // onUpdateUsers, // reserved for future use
+  onNavigate,
+}) => {
+  const isParent = currentUser.role === 'parent';
+
+  if (isParent) {
+    const children = users.filter((u) => u.role === 'child');
+
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
+              <Users className="h-4 w-4 text-emerald-400" />
+              Family overview
+            </h2>
+            <p className="text-xs text-slate-400">
+              See balances and progress for your kids. Use the tabs above to manage tasks and family.
+            </p>
+          </div>
+        </div>
+
+        {children.length === 0 ? (
+          <Card className="p-4 text-center text-xs text-slate-400">
+            No children added yet. Go to the Family tab to add your first child.
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {children.map((child) => {
+              const childTasks = tasks.filter((t) => t.assignedToId === child.id);
+              const pending = childTasks.filter((t) => t.status === 'pending').length;
+              const waiting = childTasks.filter((t) => t.status === 'waiting_for_approval').length;
+              const completed = childTasks.filter((t) => t.status === 'completed').length;
+
+              return (
+                <Card key={child.id} variant="interactive" className="relative">
+                  <div className="absolute right-0 top-0 w-20 h-20 bg-emerald-500/10 rounded-bl-full blur-2xl" />
+
+                  <div className="flex flex-col gap-3 relative">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="h-7 w-7 rounded-full bg-slate-800 flex items-center justify-center">
+                            <span className="text-sm">{child.avatar || '👤'}</span>
+                          </div>
+                          <div>
+                            <h3 className="text-xs font-semibold text-slate-100 flex items-center gap-1">
+                              {child.name}
+                            </h3>
+                            <p className="text-[10px] text-slate-400">Child</p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1 text-[11px] text-slate-300">
+                          <div className="inline-flex items-center gap-1">
+                            <Wallet className="h-3 w-3 text-emerald-400" />
+                            <span className="font-semibold text-emerald-300">
+                              {child.balance ?? 0} kr
+                            </span>
+                            <span className="text-slate-500 ml-1">current balance</span>
+                          </div>
+                          <div className="inline-flex items-center gap-1 text-slate-400">
+                            <DollarSign className="h-3 w-3 text-sky-400" />
+                            <span>
+                              Earned{' '}
+                              <span className="font-semibold text-sky-300">
+                                {child.totalEarned ?? 0} kr
+                              </span>{' '}
+                              total
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-[10px] text-slate-400 pt-1 border-t border-slate-800 mt-1">
+                      <div className="flex flex-col">
+                        <span className="text-slate-500">Pending</span>
+                        <span className="font-semibold text-slate-100">{pending}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-slate-500">Waiting</span>
+                        <span className="font-semibold text-amber-300">{waiting}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-slate-500">Completed</span>
+                        <span className="font-semibold text-emerald-300">{completed}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => onNavigate('tasks')}
+                        className="text-[11px]"
+                      >
+                        View tasks
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => onNavigate('family')}
+                        className="text-[11px]"
+                      >
+                        Family details
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Child overview
+  const myTasks = tasks.filter((t) => t.assignedToId === currentUser.id);
+  const pending = myTasks.filter((t) => t.status === 'pending').length;
+  const waiting = myTasks.filter((t) => t.status === 'waiting_for_approval').length;
+  const completed = myTasks.filter((t) => t.status === 'completed').length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-emerald-400" />
+          Hi {currentUser.name}! Here is your week.
+        </h2>
+        <p className="text-xs text-slate-400">
+          Complete your tasks and send them for approval to earn your allowance.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-300">
+        <Card className="p-2 flex flex-col gap-1">
+          <span className="text-slate-500">Pending</span>
+          <span className="font-semibold text-slate-100">{pending}</span>
+        </Card>
+        <Card className="p-2 flex flex-col gap-1">
+          <span className="text-slate-500">Waiting for approval</span>
+          <span className="font-semibold text-amber-300">{waiting}</span>
+        </Card>
+        <Card className="p-2 flex flex-col gap-1">
+          <span className="text-slate-500">Completed</span>
+          <span className="font-semibold text-emerald-300">{completed}</span>
+        </Card>
+      </div>
+
+      <div className="text-[11px] text-slate-400">
+        Use the Tasks tab below to see and update your chores.
+      </div>
+    </div>
+  );
+};
+
+// -------------------------------
 // TASK MANAGER
 // -------------------------------
 
@@ -458,7 +632,6 @@ export const FamilyManager: React.FC<FamilyManagerProps> = ({
             See all family members, balances and manage allowance payments
           </p>
         </div>
-
       </div>
 
       {/* Children Cards */}
@@ -729,7 +902,7 @@ export const FamilyManager: React.FC<FamilyManagerProps> = ({
 };
 
 // -------------------------------
-// ROOT VIEW DECIDER
+// ROOT VIEW DECIDER (unused in App but kept)
 // -------------------------------
 
 interface RootViewProps {
