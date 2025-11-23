@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Home, CheckSquare, Users, LogOut, Smartphone, Coffee } from "lucide-react";
+import { useAppState } from "./StateProvider";
 
 type TabConfig = {
   id: string;
@@ -25,6 +26,11 @@ export const Layout: React.FC<LayoutProps> = ({
   onLogout,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const { state } = useAppState();
+
+  // Count pending tasks for the current family
+  const pendingCount =
+    state?.tasks?.filter((t) => t.status === "pending").length ?? 0;
 
   // Tabs are stable and never disappear when clicking around.
   // Only rule: "Family" is visible for parents, hidden for children.
@@ -60,6 +66,21 @@ export const Layout: React.FC<LayoutProps> = ({
   }, []);
 
   const isParent = currentUser?.role === "parent";
+
+  const renderTabLabel = (tabId: string, label: string) => {
+    if (tabId !== "tasks" || pendingCount <= 0) {
+      return <span>{label}</span>;
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1">
+        <span>{label}</span>
+        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-emerald-500 text-[10px] font-bold text-slate-950 px-1">
+          {pendingCount}
+        </span>
+      </span>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col">
@@ -139,7 +160,7 @@ export const Layout: React.FC<LayoutProps> = ({
                   }`}
                 >
                   <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
+                  {renderTabLabel(tab.id, tab.label)}
                   {isActive && (
                     <span className="absolute -bottom-px left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-400 via-sky-400 to-emerald-400" />
                   )}
@@ -176,7 +197,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 }`}
               >
                 <Icon className="h-5 w-5 mb-0.5" />
-                <span>{tab.label}</span>
+                {renderTabLabel(tab.id, tab.label)}
               </button>
             );
           })}
