@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { AppState, User, Task } from '../types';
-import { Button } from './Button';
-import { Setup } from './Auth';
-import { Input } from './Input';
-import { Card } from './Card';
+import React, { useState } from "react";
+import { AppState, User, Task } from "../types";
+import { Button } from "./Button";
+import { Setup } from "./Auth";
+import { Input } from "./Input";
+import { Card } from "./Card";
 import {
   CheckCircle,
   Clock,
@@ -17,11 +17,11 @@ import {
   CheckSquare,
   Phone,
   Users,
-} from 'lucide-react';
-import { generateId } from '../utils/id';
+} from "lucide-react";
+import { generateId } from "../utils/id";
 
 // -------------------------------
-// HOME DASHBOARD (OVERVIEW)
+// HOME DASHBOARD (OVERVIEW TAB)
 // -------------------------------
 
 interface HomeDashboardProps {
@@ -29,46 +29,50 @@ interface HomeDashboardProps {
   users: User[];
   tasks: Task[];
   onUpdateUsers: (users: User[]) => void;
-  onNavigate: (view: 'tasks' | 'family') => void;
+  onNavigate: (view: "tasks" | "family") => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   currentUser,
   users,
   tasks,
-  // onUpdateUsers, // reserved for future use
+  onUpdateUsers, // reserved for future use
   onNavigate,
 }) => {
-  const isParent = currentUser.role === 'parent';
+  const isParent = currentUser.role === "parent";
 
   if (isParent) {
-    const children = users.filter((u) => u.role === 'child');
+    const children = users.filter((u) => u.role === "child");
 
     return (
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-              <Users className="h-4 w-4 text-emerald-400" />
-              Family overview
-            </h2>
-            <p className="text-xs text-slate-400">
-              See balances and progress for your kids. Use the tabs above to manage tasks and family.
-            </p>
-          </div>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-emerald-400" />
+            {currentUser.name}&apos;s overview
+          </h2>
+          <p className="text-xs text-slate-400">
+            Track balances and progress for your kids. Use the tabs above to
+            manage tasks and family.
+          </p>
         </div>
 
         {children.length === 0 ? (
           <Card className="p-4 text-center text-xs text-slate-400">
-            No children added yet. Go to the Family tab to add your first child.
+            No children added yet. Go to the <span className="font-semibold">Family</span> tab
+            to add your first child.
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {children.map((child) => {
               const childTasks = tasks.filter((t) => t.assignedToId === child.id);
-              const pending = childTasks.filter((t) => t.status === 'pending').length;
-              const waiting = childTasks.filter((t) => t.status === 'waiting_for_approval').length;
-              const completed = childTasks.filter((t) => t.status === 'completed').length;
+              const pending = childTasks.filter((t) => t.status === "pending").length;
+              const waiting = childTasks.filter(
+                (t) => t.status === "waiting_for_approval"
+              ).length;
+              const completed = childTasks.filter(
+                (t) => t.status === "completed"
+              ).length;
 
               return (
                 <Card key={child.id} variant="interactive" className="relative">
@@ -79,7 +83,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <div className="h-7 w-7 rounded-full bg-slate-800 flex items-center justify-center">
-                            <span className="text-sm">{child.avatar || '👤'}</span>
+                            <span className="text-sm">{child.avatar || "👤"}</span>
                           </div>
                           <div>
                             <h3 className="text-xs font-semibold text-slate-100 flex items-center gap-1">
@@ -95,15 +99,17 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                             <span className="font-semibold text-emerald-300">
                               {child.balance ?? 0} kr
                             </span>
-                            <span className="text-slate-500 ml-1">current balance</span>
+                            <span className="text-slate-500 ml-1">
+                              current balance
+                            </span>
                           </div>
                           <div className="inline-flex items-center gap-1 text-slate-400">
                             <DollarSign className="h-3 w-3 text-sky-400" />
                             <span>
-                              Earned{' '}
+                              Earned{" "}
                               <span className="font-semibold text-sky-300">
                                 {child.totalEarned ?? 0} kr
-                              </span>{' '}
+                              </span>{" "}
                               total
                             </span>
                           </div>
@@ -114,15 +120,21 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     <div className="grid grid-cols-3 gap-2 text-[10px] text-slate-400 pt-1 border-t border-slate-800 mt-1">
                       <div className="flex flex-col">
                         <span className="text-slate-500">Pending</span>
-                        <span className="font-semibold text-slate-100">{pending}</span>
+                        <span className="font-semibold text-slate-100">
+                          {pending}
+                        </span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-slate-500">Waiting</span>
-                        <span className="font-semibold text-amber-300">{waiting}</span>
+                        <span className="font-semibold text-amber-300">
+                          {waiting}
+                        </span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-slate-500">Completed</span>
-                        <span className="font-semibold text-emerald-300">{completed}</span>
+                        <span className="font-semibold text-emerald-300">
+                          {completed}
+                        </span>
                       </div>
                     </div>
 
@@ -130,7 +142,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                       <Button
                         size="xs"
                         variant="ghost"
-                        onClick={() => onNavigate('tasks')}
+                        onClick={() => onNavigate("tasks")}
                         className="text-[11px]"
                       >
                         View tasks
@@ -138,7 +150,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                       <Button
                         size="xs"
                         variant="ghost"
-                        onClick={() => onNavigate('family')}
+                        onClick={() => onNavigate("family")}
                         className="text-[11px]"
                       >
                         Family details
@@ -156,9 +168,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
   // Child overview
   const myTasks = tasks.filter((t) => t.assignedToId === currentUser.id);
-  const pending = myTasks.filter((t) => t.status === 'pending').length;
-  const waiting = myTasks.filter((t) => t.status === 'waiting_for_approval').length;
-  const completed = myTasks.filter((t) => t.status === 'completed').length;
+  const pending = myTasks.filter((t) => t.status === "pending").length;
+  const waiting = myTasks.filter(
+    (t) => t.status === "waiting_for_approval"
+  ).length;
+  const completed = myTasks.filter((t) => t.status === "completed").length;
 
   return (
     <div className="space-y-4">
@@ -178,7 +192,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <span className="font-semibold text-slate-100">{pending}</span>
         </Card>
         <Card className="p-2 flex flex-col gap-1">
-          <span className="text-slate-500">Waiting for approval</span>
+          <span className="text-slate-500">Waiting</span>
           <span className="font-semibold text-amber-300">{waiting}</span>
         </Card>
         <Card className="p-2 flex flex-col gap-1">
@@ -188,14 +202,15 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       </div>
 
       <div className="text-[11px] text-slate-400">
-        Use the Tasks tab below to see and update your chores.
+        Use the <span className="font-semibold">Tasks</span> tab to see and update
+        your chores.
       </div>
     </div>
   );
 };
 
 // -------------------------------
-// TASK MANAGER
+// TASK MANAGER (TASKS TAB)
 // -------------------------------
 
 interface TaskManagerProps {
@@ -212,10 +227,10 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   onStateChange,
 }) => {
   const [newTask, setNewTask] = useState({
-    title: '',
-    description: '',
+    title: "",
+    description: "",
     reward: 10,
-    assignedToId: '',
+    assignedToId: "",
   });
   const [isCreating, setIsCreating] = useState(false);
 
@@ -229,33 +244,33 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       description: newTask.description.trim() || undefined,
       reward: newTask.reward,
       assignedToId: newTask.assignedToId,
-      status: 'pending',
+      status: "pending",
       createdAt: Date.now(),
     };
 
     onStateChange({ tasks: [...tasks, task] });
 
     setNewTask({
-      title: '',
-      description: '',
+      title: "",
+      description: "",
       reward: 10,
-      assignedToId: '',
+      assignedToId: "",
     });
 
     setIsCreating(false);
   };
 
   const handleDeleteTask = (taskId: string) => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
+    if (!confirm("Are you sure you want to delete this task?")) return;
     onStateChange({ tasks: tasks.filter((task) => task.id !== taskId) });
   };
 
   const assignedToName = (task: Task) => {
     const user = users.find((u) => u.id === task.assignedToId);
-    return user?.name ?? 'Unknown';
+    return user?.name ?? "Unknown";
   };
 
-  const isParent = currentUser.role === 'parent';
+  const isParent = currentUser.role === "parent";
   const myTasks = isParent
     ? tasks
     : tasks.filter((task) => task.assignedToId === currentUser.id);
@@ -267,12 +282,12 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         <div>
           <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
             <CheckSquare className="h-4 w-4 text-emerald-400" />
-            {isParent ? 'Family tasks' : 'My tasks'}
+            {isParent ? "Family tasks" : "My tasks"}
           </h2>
           <p className="text-xs text-slate-400">
             {isParent
-              ? 'Create tasks and assign them to your kids. Approve completed tasks to add to their allowance.'
-              : 'Complete your tasks and send them for approval to earn your allowance.'}
+              ? "Create tasks and assign them to your kids. Approve completed tasks to add to their allowance."
+              : "Complete your tasks and send them for approval to earn your allowance."}
           </p>
         </div>
 
@@ -374,7 +389,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     >
                       <option value="">Select child...</option>
                       {users
-                        .filter((u) => u.role === 'child')
+                        .filter((u) => u.role === "child")
                         .map((child) => (
                           <option key={child.id} value={child.id}>
                             {child.name}
@@ -422,19 +437,19 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                       {task.title}
                     </h3>
                     <span className="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-300">
-                      {task.status === 'pending' && (
+                      {task.status === "pending" && (
                         <>
                           <Clock className="h-3 w-3 mr-1 text-sky-400" />
                           Not started
                         </>
                       )}
-                      {task.status === 'waiting_for_approval' && (
+                      {task.status === "waiting_for_approval" && (
                         <>
                           <AlertCircle className="h-3 w-3 mr-1 text-amber-400" />
                           Waiting for approval
                         </>
                       )}
-                      {task.status === 'completed' && (
+                      {task.status === "completed" && (
                         <>
                           <CheckCircle className="h-3 w-3 mr-1 text-emerald-400" />
                           Approved
@@ -462,13 +477,13 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 </div>
 
                 <div className="flex flex-col items-end gap-2">
-                  {currentUser.role === 'child' && task.status === 'pending' && (
+                  {currentUser.role === "child" && task.status === "pending" && (
                     <Button
                       size="xs"
                       onClick={() => {
                         const updated = tasks.map((t) =>
                           t.id === task.id
-                            ? { ...t, status: 'waiting_for_approval' }
+                            ? { ...t, status: "waiting_for_approval" }
                             : t
                         );
                         onStateChange({ tasks: updated });
@@ -478,8 +493,8 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     </Button>
                   )}
 
-                  {currentUser.role === 'parent' &&
-                    task.status === 'waiting_for_approval' && (
+                  {currentUser.role === "parent" &&
+                    task.status === "waiting_for_approval" && (
                       <div className="flex gap-2">
                         <Button
                           size="xs"
@@ -487,7 +502,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                           onClick={() => {
                             const updated = tasks.map((t) =>
                               t.id === task.id
-                                ? { ...t, status: 'completed' }
+                                ? { ...t, status: "completed" }
                                 : t
                             );
                             const child = users.find(
@@ -521,7 +536,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                           onClick={() => {
                             const updated = tasks.map((t) =>
                               t.id === task.id
-                                ? { ...t, status: 'pending' }
+                                ? { ...t, status: "pending" }
                                 : t
                             );
                             onStateChange({ tasks: updated });
@@ -532,7 +547,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                       </div>
                     )}
 
-                  {currentUser.role === 'parent' && (
+                  {currentUser.role === "parent" && (
                     <button
                       onClick={() => handleDeleteTask(task.id)}
                       className="inline-flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300"
@@ -552,14 +567,14 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 };
 
 // -------------------------------
-// FAMILY MANAGER
+// FAMILY MANAGER (FAMILY TAB)
 // -------------------------------
 
 interface FamilyManagerProps {
   currentUser: User;
   users: User[];
   onStateChange: (newState: Partial<AppState>) => void;
-  onNavigate: (view: 'tasks' | 'family') => void;
+  onNavigate: (view: "tasks" | "family") => void;
 }
 
 export const FamilyManager: React.FC<FamilyManagerProps> = ({
@@ -570,8 +585,8 @@ export const FamilyManager: React.FC<FamilyManagerProps> = ({
 }) => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  const parents = users.filter((u) => u.role === 'parent');
-  const children = users.filter((u) => u.role === 'child');
+  const parents = users.filter((u) => u.role === "parent");
+  const children = users.filter((u) => u.role === "child");
 
   const selectedUser = selectedUserId
     ? users.find((u) => u.id === selectedUserId)
@@ -610,7 +625,7 @@ export const FamilyManager: React.FC<FamilyManagerProps> = ({
   };
 
   const handleRemoveUser = (userId: string) => {
-    if (!confirm('Are you sure you want to remove this family member?')) return;
+    if (!confirm("Are you sure you want to remove this family member?")) return;
     const updatedUsers = users.filter((u) => u.id !== userId);
     onStateChange({ users: updatedUsers });
 
@@ -625,329 +640,3 @@ export const FamilyManager: React.FC<FamilyManagerProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-            <Users className="h-4 w-4 text-emerald-400" />
-            Family overview
-          </h2>
-          <p className="text-xs text-slate-400">
-            See all family members, balances and manage allowance payments
-          </p>
-        </div>
-      </div>
-
-      {/* Children Cards */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {children.map((child) => (
-          <Card key={child.id} variant="interactive" className="relative">
-            <div className="absolute right-0 top-0 w-24 h-24 bg-primary-500/10 rounded-bl-full blur-2xl"></div>
-
-            <div className="flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="h-7 w-7 rounded-full bg-slate-800 flex items-center justify-center">
-                      <span className="text-sm">
-                        {child.avatar || '👤'}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-semibold text-slate-100 flex items-center gap-1">
-                        {child.name}
-                      </h3>
-                      <p className="text-[10px] text-slate-400">
-                        {child.role === 'child' ? 'Child' : 'Parent'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1 text-[11px] text-slate-300">
-                    <div className="inline-flex items-center gap-1">
-                      <Wallet className="h-3 w-3 text-emerald-400" />
-                      <span className="font-semibold text-emerald-300">
-                        {child.balance ?? 0} kr
-                      </span>
-                      <span className="text-slate-500 ml-1">current balance</span>
-                    </div>
-                    <div className="inline-flex items-center gap-1 text-slate-400">
-                      <DollarSign className="h-3 w-3 text-sky-400" />
-                      <span>
-                        Earned{' '}
-                        <span className="font-semibold text-sky-300">
-                          {child.totalEarned ?? 0} kr
-                        </span>{' '}
-                        total
-                      </span>
-                    </div>
-                    {child.phoneNumber && (
-                      <div className="inline-flex items-center gap-1 text-slate-400">
-                        <Phone className="h-3 w-3 text-slate-500" />
-                        <span>{child.phoneNumber}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  className="text-xs text-slate-400 hover:text-slate-100"
-                  onClick={() => setSelectedUserId(child.id)}
-                >
-                  Details
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800 mt-1 pt-2">
-                <div className="flex gap-1">
-                  <Button
-                    size="xs"
-                    variant="secondary"
-                    onClick={() => handleBalanceUpdate(child.id, 10)}
-                  >
-                    +10 kr
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="secondary"
-                    onClick={() => handleBalanceUpdate(child.id, 20)}
-                  >
-                    +20 kr
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="secondary"
-                    onClick={() => handleBalanceUpdate(child.id, -10)}
-                  >
-                    -10 kr
-                  </Button>
-                </div>
-                <Button
-                  size="xs"
-                  variant="primary"
-                  onClick={() => handlePayOut(child.id)}
-                  disabled={!child.balance || child.balance <= 0}
-                >
-                  Pay out
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Parents List */}
-      {parents.length > 0 && (
-        <div>
-          <h3 className="text-xs font-semibold text-slate-200 mb-2 flex items-center gap-1">
-            <UserIcon className="h-3 w-3 text-slate-400" />
-            Parents
-          </h3>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {parents.map((parent) => (
-              <Card key={parent.id} className="p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-full bg-slate-800 flex items-center justify-center">
-                    <span className="text-sm">{parent.avatar || '👤'}</span>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-slate-100">
-                      {parent.name}
-                    </div>
-                    <div className="text-[10px] text-slate-400">Parent</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleRemoveUser(parent.id)}
-                    className="inline-flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300"
-                  >
-                    <Trash2 size={14} />
-                    Remove
-                  </button>
-
-                  {parent.phoneNumber && (
-                    <a
-                      href={`tel:${parent.phoneNumber}`}
-                      className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
-                    >
-                      <Phone size={12} />
-                      Call
-                    </a>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Selected child details (sidebar/modal) */}
-      {selectedUser && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/80 backdrop-blur">
-          <div className="w-full max-w-md p-4">
-            <Card>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                    <UserIcon className="h-4 w-4 text-emerald-400" />
-                    {selectedUser.name}
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    {selectedUser.role === 'child' ? 'Child' : 'Parent'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelectedUserId(null)}
-                  className="p-1 rounded-full hover:bg-slate-800 text-slate-400 hover:text-slate-100"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex flex-col gap-1 text-[11px] text-slate-300">
-                  <div className="inline-flex items-center gap-1">
-                    <Wallet className="h-3 w-3 text-emerald-400" />
-                    <span className="font-semibold text-emerald-300">
-                      {selectedUser.balance ?? 0} kr
-                    </span>
-                    <span className="text-slate-500 ml-1">
-                      current balance
-                    </span>
-                  </div>
-                  <div className="inline-flex items-center gap-1 text-slate-400">
-                    <DollarSign className="h-3 w-3 text-sky-400" />
-                    <span>
-                      Earned{' '}
-                      <span className="font-semibold text-sky-300">
-                        {selectedUser.totalEarned ?? 0} kr
-                      </span>{' '}
-                      total
-                    </span>
-                  </div>
-                  {selectedUser.phoneNumber && (
-                    <div className="inline-flex items-center gap-1 text-slate-400">
-                      <Phone className="h-3 w-3 text-slate-500" />
-                      <span>{selectedUser.phoneNumber}</span>
-                    </div>
-                  )}
-                </div>
-
-                {selectedUser.role === 'child' && (
-                  <div className="flex flex-col gap-2 pt-2 border-t border-slate-800">
-                    <div className="text-[11px] text-slate-400">
-                      Quick balance adjustments
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="xs"
-                        variant="secondary"
-                        onClick={() => handleBalanceUpdate(selectedUser.id, 10)}
-                      >
-                        +10 kr
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="secondary"
-                        onClick={() => handleBalanceUpdate(selectedUser.id, 20)}
-                      >
-                        +20 kr
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="secondary"
-                        onClick={() => handleBalanceUpdate(selectedUser.id, -10)}
-                      >
-                        -10 kr
-                      </Button>
-                    </div>
-                    <div className="flex justify-end">
-                      <Button
-                        size="xs"
-                        variant="primary"
-                        onClick={() => handlePayOut(selectedUser.id)}
-                        disabled={
-                          !selectedUser.balance || selectedUser.balance <= 0
-                        }
-                      >
-                        Pay out to {selectedUser.name}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-between items-center pt-2 border-t border-slate-800 mt-2">
-                  <button
-                    onClick={() => handleRemoveUser(selectedUser.id)}
-                    className="inline-flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300"
-                  >
-                    <Trash2 size={14} />
-                    Remove from family
-                  </button>
-
-                  {selectedUser.phoneNumber && (
-                    <a
-                      href={`tel:${selectedUser.phoneNumber}`}
-                      className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
-                    >
-                      <Phone size={12} />
-                      Call
-                    </a>
-                  )}
-                </div>
-              </div>
-            </Card>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// -------------------------------
-// ROOT VIEW DECIDER (unused in App but kept)
-// -------------------------------
-
-interface RootViewProps {
-  state: AppState;
-  currentUser: User | null;
-  onStateChange: (update: Partial<AppState>) => void;
-  onNavigate: (view: 'tasks' | 'family') => void;
-}
-
-export const RootView: React.FC<RootViewProps> = ({
-  state,
-  currentUser,
-  onStateChange,
-  onNavigate,
-}) => {
-  if (!state.users.length) {
-    return <Setup onStateChange={onStateChange} />;
-  }
-
-  if (!currentUser) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <p className="text-sm text-slate-300">
-          Please sign in to see your family&apos;s Veckopeng.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <TaskManager
-        currentUser={currentUser}
-        users={state.users}
-        tasks={state.tasks}
-        onStateChange={onStateChange}
-      />
-      {currentUser.role === 'parent' && (
-        <FamilyManager
-          currentUser={currentUser}
-          users={state.users}
-          onStateChange={onStateChange}
-          onNavigate={onNavigate}
-        />
-      )}
-    </div>
-  );
-};
