@@ -50,12 +50,24 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     assignedToId: '',
   });
 
+  const [statusFilter, setStatusFilter] = useState<
+    'all' | 'pending' | 'waiting_for_approval' | 'completed'
+  >('all');
+
   const isParent = currentUser.role === 'parent';
   const children = users.filter((u) => u.role === 'child');
 
   const visibleTasks = isParent
     ? tasks
     : tasks.filter((t) => t.assignedToId === currentUser.id);
+
+  const filteredTasks = visibleTasks
+    .filter((t) =>
+      statusFilter === 'all' ? true : t.status === statusFilter
+    )
+    .sort((a, b) => b.createdAt - a.createdAt);
+
+  const hasAnyTasks = visibleTasks.length > 0;
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -302,22 +314,65 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         </div>
       )}
 
+      {/* Filters */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div className="inline-flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant={statusFilter === 'all' ? 'secondary' : 'ghost'}
+            onClick={() => setStatusFilter('all')}
+          >
+            All
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === 'pending' ? 'secondary' : 'ghost'}
+            onClick={() => setStatusFilter('pending')}
+          >
+            To do
+          </Button>
+          <Button
+            size="sm"
+            variant={
+              statusFilter === 'waiting_for_approval' ? 'secondary' : 'ghost'
+            }
+            onClick={() => setStatusFilter('waiting_for_approval')}
+          >
+            Waiting for approval
+          </Button>
+          <Button
+            size="sm"
+            variant={statusFilter === 'completed' ? 'secondary' : 'ghost'}
+            onClick={() => setStatusFilter('completed')}
+          >
+            Completed
+          </Button>
+        </div>
+        {hasAnyTasks && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Showing {filteredTasks.length} of {visibleTasks.length} tasks
+          </p>
+        )}
+      </div>
+
       {/* Task list */}
-      {visibleTasks.length === 0 ? (
+      {filteredTasks.length === 0 ? (
         <Card className="flex flex-col items-center justify-center py-12 text-center space-y-3">
           <CheckSquare className="w-10 h-10 text-gray-300 dark:text-gray-600" />
           <h3 className="font-semibold text-gray-800 dark:text-gray-100">
-            No tasks yet
+            No tasks to show
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {isParent
-              ? 'Create a task and assign it to one of your children to get started.'
-              : 'Your parent has not assigned any tasks to you yet.'}
+            {!hasAnyTasks
+              ? isParent
+                ? 'Create a task and assign it to one of your children to get started.'
+                : 'Your parent has not assigned any tasks to you yet.'
+              : 'No tasks match this filter. Try changing the status above.'}
           </p>
         </Card>
       ) : (
         <div className="grid gap-4">
-          {visibleTasks.map((task) => {
+          {filteredTasks.map((task) => {
             const assignedChild = users.find((u) => u.id === task.assignedToId);
             const canSendForApproval =
               !isParent &&
