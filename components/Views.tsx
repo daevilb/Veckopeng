@@ -4,6 +4,7 @@ import { Button } from './Button';
 import { Setup } from './Auth';
 import { Input } from './Input';
 import { Card } from './Card';
+import { buildSwishPaymentUrl } from '../services/payments';
 import { approveTaskApi, createTaskApi, updateTaskApi } from '../services/api';
 import {
   CheckCircle,
@@ -729,16 +730,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       return;
     }
 
-    const paymentData = {
-      version: 1,
-      payee: { value: child.phoneNumber },
-      amount: { value: child.balance },
-      message: { value: 'Veckopeng' },
-    };
-
-    const url = `swish://payment?data=${encodeURIComponent(
-      JSON.stringify(paymentData)
-    )}`;
+    const url = buildSwishPaymentUrl({
+      phoneNumber: child.phoneNumber,
+      amount: child.balance ?? 0,
+      message: 'Veckopeng',
+    });
 
     const confirmed = window.confirm(
       `Open Swish to pay ${child.balance} kr to ${child.name} (${child.phoneNumber})?`
@@ -918,7 +914,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     </Button>
                     <Button
                       variant="primary"
-                      disabled={!child.balance}
+                      disabled={!child.balance || !child.phoneNumber}
                       onClick={() => handlePayment(child.id)}
                     >
                       <Smartphone className="w-4 h-4" />
