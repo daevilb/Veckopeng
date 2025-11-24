@@ -54,7 +54,6 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     'all' | 'pending' | 'waiting_for_approval' | 'completed'
   >('all');
 
-
   const [hideCompleted, setHideCompleted] = useState(false);
   const isParent = currentUser.role === 'parent';
   const children = users.filter((u) => u.role === 'child');
@@ -74,8 +73,12 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
   const hasAnyTasks = visibleTasks.length > 0;
   const pendingCount = visibleTasks.filter((t) => t.status === 'pending').length;
-  const waitingCount = visibleTasks.filter((t) => t.status === 'waiting_for_approval').length;
-  const completedCount = visibleTasks.filter((t) => t.status === 'completed').length;
+  const waitingCount = visibleTasks.filter(
+    (t) => t.status === 'waiting_for_approval'
+  ).length;
+  const completedCount = visibleTasks.filter(
+    (t) => t.status === 'completed'
+  ).length;
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,7 +135,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       existing.status === 'waiting_for_approval'
     ) {
       try {
-        const { task: updatedTask, user: updatedUser } = await approveTaskApi(taskId);
+        const { task: updatedTask, user: updatedUser } = await approveTaskApi(
+          taskId
+        );
 
         const updatedTasks = tasks.map((t) =>
           t.id === taskId ? (updatedTask as Task) : t
@@ -177,8 +182,6 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     }
   };
 
-
-
   const getStatusLabel = (status: TaskStatus) => {
     switch (status) {
       case 'pending':
@@ -216,10 +219,11 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             {isParent
               ? 'Create, assign and approve tasks for your family.'
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-            {pendingCount} to do · {waitingCount} waiting · {completedCount} completed
-          </p>
               : 'See your tasks and send them for approval.'}
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            {pendingCount} to do · {waitingCount} waiting · {completedCount}{' '}
+            completed
           </p>
         </div>
         {isParent && !isCreating && (
@@ -271,11 +275,11 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     setNewTask((t) => ({ ...t, description: e.target.value }))
                   }
                 />
-                  min={1}
+              </div>
               <div className="md:col-span-4">
                 <Input
                   type="number"
-                  min={0}
+                  min={1}
                   label="Reward (kr)"
                   value={newTask.reward}
                   onChange={(e) =>
@@ -334,7 +338,11 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 </Button>
                 <Button
                   type="submit"
-                  disabled={!newTask.title || !newTask.assignedToId || newTask.reward < 1}
+                  disabled={
+                    !newTask.title ||
+                    !newTask.assignedToId ||
+                    newTask.reward < 1
+                  }
                 >
                   <CheckCircle size={18} />
                   Save Task
@@ -366,7 +374,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             <Button
               size="sm"
               variant={
-                statusFilter === 'waiting_for_approval' ? 'secondary' : 'ghost'
+                statusFilter === 'waiting_for_approval'
+                  ? 'secondary'
+                  : 'ghost'
               }
               onClick={() => setStatusFilter('waiting_for_approval')}
             >
@@ -417,7 +427,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       ) : (
         <div className="grid gap-4">
           {filteredTasks.map((task) => {
-            const assignedChild = users.find((u) => u.id === task.assignedToId);
+            const assignedChild = users.find(
+              (u) => u.id === task.assignedToId
+            );
             const canSendForApproval =
               !isParent &&
               task.assignedToId === currentUser.id &&
@@ -440,7 +452,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                   <div className="flex items-center gap-2">
                     <span
                       className={`inline-flex items-center text-xs font-medium ${getStatusBadgeClasses(
-                        task.status,
+                        task.status
                       )}`}
                     >
                       <CheckSquare className="w-3 h-3 mr-1" />
@@ -477,7 +489,10 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     <Button
                       variant="primary"
                       onClick={() =>
-                        handleStatusChange(task.id, 'waiting_for_approval')
+                        handleStatusChange(
+                          task.id,
+                          'waiting_for_approval'
+                        )
                       }
                     >
                       <CheckCircle className="w-4 h-4" />
@@ -548,7 +563,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     const myTasks = tasks.filter((t) => t.assignedToId === currentUser.id);
     const pending = myTasks.filter((t) => t.status === 'pending').length;
     const waiting = myTasks.filter(
-      (t) => t.status === 'waiting_for_approval',
+      (t) => t.status === 'waiting_for_approval'
     ).length;
     const done = myTasks.filter((t) => t.status === 'completed').length;
 
@@ -648,7 +663,8 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
           {myTasks.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              You don't have any tasks yet. Your parent can assign some from their view.
+              You don't have any tasks yet. Your parent can assign some from
+              their view.
             </p>
           ) : (
             <ul className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -688,7 +704,6 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </ul>
           )}
         </Card>
-
       </div>
     );
   }
@@ -697,10 +712,10 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const children = users.filter((u) => u.role === 'child');
   const totalBalance = children.reduce(
     (sum, c) => sum + (c.balance ?? 0),
-    0,
+    0
   );
   const waitingTasks = tasks.filter(
-    (t) => t.status === 'waiting_for_approval',
+    (t) => t.status === 'waiting_for_approval'
   );
 
   const handlePayment = (childId: string) => {
@@ -709,7 +724,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
     if (!child.phoneNumber) {
       alert(
-        `Please add a phone number for ${child.name} in the Family tab to use Swish.`,
+        `Please add a phone number for ${child.name} in the Family tab to use Swish.`
       );
       return;
     }
@@ -722,11 +737,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     };
 
     const url = `swish://payment?data=${encodeURIComponent(
-      JSON.stringify(paymentData),
+      JSON.stringify(paymentData)
     )}`;
 
     const confirmed = window.confirm(
-      `Open Swish to pay ${child.balance} kr to ${child.name} (${child.phoneNumber})?`,
+      `Open Swish to pay ${child.balance} kr to ${child.name} (${child.phoneNumber})?`
     );
 
     if (confirmed) {
@@ -734,11 +749,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       setTimeout(() => {
         if (
           window.confirm(
-            'Did the payment go through successfully? Press OK to reset balance to 0.',
+            'Did the payment go through successfully? Press OK to reset balance to 0.'
           )
         ) {
           const updated = users.map((u) =>
-            u.id === childId ? { ...u, balance: 0 } : u,
+            u.id === childId ? { ...u, balance: 0 } : u
           );
           onUpdateUsers(updated);
         }
@@ -839,16 +854,16 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <div className="grid gap-4 md:grid-cols-2">
             {children.map((child) => {
               const childTasks = tasks.filter(
-                (t) => t.assignedToId === child.id,
+                (t) => t.assignedToId === child.id
               );
               const pending = childTasks.filter(
-                (t) => t.status === 'pending',
+                (t) => t.status === 'pending'
               ).length;
               const waiting = childTasks.filter(
-                (t) => t.status === 'waiting_for_approval',
+                (t) => t.status === 'waiting_for_approval'
               ).length;
               const completed = childTasks.filter(
-                (t) => t.status === 'completed',
+                (t) => t.status === 'completed'
               ).length;
 
               return (
