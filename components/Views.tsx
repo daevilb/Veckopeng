@@ -117,9 +117,13 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         reward: 20,
         assignedToId: '',
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create task:', err);
-      alert('Could not create task. Please try again.');
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Could not create task. Please try again.';
+      alert(message);
     }
   };
 
