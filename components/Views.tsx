@@ -630,6 +630,59 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             Open tasks
           </Button>
         </Card>
+
+        <Card className="mt-2">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+              Your tasks
+            </p>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Quick overview of what to do next
+            </span>
+          </div>
+          {myTasks.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              You don't have any tasks yet. Your parent can assign some from their view.
+            </p>
+          ) : (
+            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+              {myTasks
+                .slice()
+                .sort((a, b) => b.createdAt - a.createdAt)
+                .slice(0, 5)
+                .map((task) => (
+                  <li
+                    key={task.id}
+                    className="flex items-center justify-between gap-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {task.title}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {task.status === 'pending' &&
+                          'Not started yet – you can do this one next.'}
+                        {task.status === 'waiting_for_approval' &&
+                          'Done! Waiting for your parent to approve.'}
+                        {task.status === 'completed' && 'Completed 🎉'}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                        {task.reward} kr
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-50 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                        {task.status === 'pending' && 'To do'}
+                        {task.status === 'waiting_for_approval' && 'Waiting'}
+                        {task.status === 'completed' && 'Done'}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </Card>
+
       </div>
     );
   }
