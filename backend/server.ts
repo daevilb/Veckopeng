@@ -473,8 +473,8 @@ app.post('/api/tasks/:id/approve', (req, res) => {
     const tx = db.transaction(() => {
       // Update task status + completedAt if not set
       db.prepare(
-        'UPDATE tasks SET status = ?, completedAt = COALESCE(completedAt, ?) WHERE id = ? AND familyId = ?'
-      ).run('approved', now, existing.id, existing.familyId);
+  'UPDATE tasks SET status = ?, completedAt = COALESCE(completedAt, ?) WHERE id = ? AND familyId = ?'
+).run('completed', now, existing.id, existing.familyId);
 
       // Update user balance and totalEarned
       const newBalance = (user.balance ?? 0) + (existing.reward ?? 0);
