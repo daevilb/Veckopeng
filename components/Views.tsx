@@ -94,11 +94,12 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       onStateChange({ tasks: [...tasks, created] });
 
       setIsCreating(false);
+      // Keep the same child and reward selected to speed up creating multiple tasks
       setNewTask({
         title: '',
         description: '',
-        reward: 20,
-        assignedToId: '',
+        reward: newTask.reward,
+        assignedToId: newTask.assignedToId,
       });
     } catch (err) {
       console.error('Failed to create task:', err);
@@ -241,6 +242,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
               <div className="md:col-span-6">
                 <Input
                   required
+                  autoFocus
                   label="Title"
                   placeholder="e.g. Clean your room"
                   value={newTask.title}
@@ -272,6 +274,24 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     }))
                   }
                 />
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <span className="mr-1">Quick amounts:</span>
+                  {[5, 10, 20, 50].map((amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      onClick={() =>
+                        setNewTask((t) => ({
+                          ...t,
+                          reward: amount,
+                        }))
+                      }
+                      className="px-2 py-1 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      {amount} kr
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="md:col-span-4">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
