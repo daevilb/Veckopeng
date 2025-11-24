@@ -137,7 +137,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
             {/* Support link */}
             <a
-              href="https://www.buymeacoffee.com/daevilb"
+              href="https://www.buymeacoffee.com/andersbergz"
               target="_blank"
               rel="noreferrer"
               className="hidden sm:inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200"
