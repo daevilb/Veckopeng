@@ -4,7 +4,6 @@ import { Button } from './Button';
 import { Setup } from './Auth';
 import { Input } from './Input';
 import { Card } from './Card';
-import { buildSwishPaymentUrl } from '../services/payments';
 import { approveTaskApi, createTaskApi, updateTaskApi } from '../services/api';
 import {
   CheckCircle,
@@ -51,35 +50,12 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     assignedToId: '',
   });
 
-  const [statusFilter, setStatusFilter] = useState<
-    'all' | 'pending' | 'waiting_for_approval' | 'completed'
-  >('all');
-
-  const [hideCompleted, setHideCompleted] = useState(false);
   const isParent = currentUser.role === 'parent';
   const children = users.filter((u) => u.role === 'child');
 
   const visibleTasks = isParent
     ? tasks
     : tasks.filter((t) => t.assignedToId === currentUser.id);
-
-  const filteredTasks = visibleTasks
-    .filter((t) =>
-      statusFilter === 'all' ? true : t.status === statusFilter
-    )
-    .filter((t) =>
-      hideCompleted && statusFilter === 'all' ? t.status !== 'completed' : true
-    )
-    .sort((a, b) => b.createdAt - a.createdAt);
-
-  const hasAnyTasks = visibleTasks.length > 0;
-  const pendingCount = visibleTasks.filter((t) => t.status === 'pending').length;
-  const waitingCount = visibleTasks.filter(
-    (t) => t.status === 'waiting_for_approval'
-  ).length;
-  const completedCount = visibleTasks.filter(
-    (t) => t.status === 'completed'
-  ).length;
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,12 +82,11 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       onStateChange({ tasks: [...tasks, created] });
 
       setIsCreating(false);
-      // Keep the same child and reward selected to speed up creating multiple tasks
       setNewTask({
         title: '',
         description: '',
-        reward: newTask.reward,
-        assignedToId: newTask.assignedToId,
+        reward: 20,
+        assignedToId: '',
       });
     } catch (err) {
       console.error('Failed to create task:', err);
@@ -136,9 +111,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       existing.status === 'waiting_for_approval'
     ) {
       try {
-        const { task: updatedTask, user: updatedUser } = await approveTaskApi(
-          taskId
-        );
+        const { task: updatedTask, user: updatedUser } = await approveTaskApi(taskId);
 
         const updatedTasks = tasks.map((t) =>
           t.id === taskId ? (updatedTask as Task) : t
@@ -183,18 +156,6 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     }
   };
 
-  const getStatusLabel = (status: TaskStatus) => {
-    switch (status) {
-      case 'pending':
-        return 'To do';
-      case 'waiting_for_approval':
-        return 'Waiting for approval';
-      case 'completed':
-        return 'Completed';
-      default:
-        return status;
-    }
-  };
 
   const getStatusBadgeClasses = (status: TaskStatus) => {
     switch (status) {
@@ -221,10 +182,6 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             {isParent
               ? 'Create, assign and approve tasks for your family.'
               : 'See your tasks and send them for approval.'}
-          </p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-            {pendingCount} to do · {waitingCount} waiting · {completedCount}{' '}
-            completed
           </p>
         </div>
         {isParent && !isCreating && (
@@ -258,7 +215,6 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
               <div className="md:col-span-6">
                 <Input
                   required
-                  autoFocus
                   label="Title"
                   placeholder="e.g. Clean your room"
                   value={newTask.title}
@@ -280,7 +236,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
               <div className="md:col-span-4">
                 <Input
                   type="number"
-                  min={1}
+                  min={0}
                   label="Reward (kr)"
                   value={newTask.reward}
                   onChange={(e) =>
@@ -290,24 +246,6 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     }))
                   }
                 />
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                  <span className="mr-1">Quick amounts:</span>
-                  {[5, 10, 20, 50].map((amount) => (
-                    <button
-                      key={amount}
-                      type="button"
-                      onClick={() =>
-                        setNewTask((t) => ({
-                          ...t,
-                          reward: amount,
-                        }))
-                      }
-                      className="px-2 py-1 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    >
-                      {amount} kr
-                    </button>
-                  ))}
-                </div>
               </div>
               <div className="md:col-span-4">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
@@ -339,11 +277,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 </Button>
                 <Button
                   type="submit"
-                  disabled={
-                    !newTask.title ||
-                    !newTask.assignedToId ||
-                    newTask.reward < 1
-                  }
+                  disabled={!newTask.title || !newTask.assignedToId}
                 >
                   <CheckCircle size={18} />
                   Save Task
@@ -354,83 +288,23 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         </div>
       )}
 
-      {/* Filters */}
-      <div className="space-y-2 mb-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="inline-flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant={statusFilter === 'all' ? 'secondary' : 'ghost'}
-              onClick={() => setStatusFilter('all')}
-            >
-              All
-            </Button>
-            <Button
-              size="sm"
-              variant={statusFilter === 'pending' ? 'secondary' : 'ghost'}
-              onClick={() => setStatusFilter('pending')}
-            >
-              To do
-            </Button>
-            <Button
-              size="sm"
-              variant={
-                statusFilter === 'waiting_for_approval'
-                  ? 'secondary'
-                  : 'ghost'
-              }
-              onClick={() => setStatusFilter('waiting_for_approval')}
-            >
-              Waiting for approval
-            </Button>
-            <Button
-              size="sm"
-              variant={statusFilter === 'completed' ? 'secondary' : 'ghost'}
-              onClick={() => setStatusFilter('completed')}
-            >
-              Completed
-            </Button>
-          </div>
-          {hasAnyTasks && (
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Showing {filteredTasks.length} of {visibleTasks.length} tasks
-            </p>
-          )}
-        </div>
-        {hasAnyTasks && statusFilter === 'all' && (
-          <label className="inline-flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-            <input
-              type="checkbox"
-              checked={hideCompleted}
-              onChange={(e) => setHideCompleted(e.target.checked)}
-              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:bg-gray-900 dark:border-gray-700"
-            />
-            <span>Hide completed tasks when viewing all</span>
-          </label>
-        )}
-      </div>
-
       {/* Task list */}
-      {filteredTasks.length === 0 ? (
+      {visibleTasks.length === 0 ? (
         <Card className="flex flex-col items-center justify-center py-12 text-center space-y-3">
           <CheckSquare className="w-10 h-10 text-gray-300 dark:text-gray-600" />
           <h3 className="font-semibold text-gray-800 dark:text-gray-100">
-            No tasks to show
+            No tasks yet
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {!hasAnyTasks
-              ? isParent
-                ? 'Create a task and assign it to one of your children to get started.'
-                : 'Your parent has not assigned any tasks to you yet.'
-              : 'No tasks match this filter. Try changing the status above.'}
+            {isParent
+              ? 'Create a task and assign it to one of your children to get started.'
+              : 'Your parent has not assigned any tasks to you yet.'}
           </p>
         </Card>
       ) : (
         <div className="grid gap-4">
-          {filteredTasks.map((task) => {
-            const assignedChild = users.find(
-              (u) => u.id === task.assignedToId
-            );
+          {visibleTasks.map((task) => {
+            const assignedChild = users.find((u) => u.id === task.assignedToId);
             const canSendForApproval =
               !isParent &&
               task.assignedToId === currentUser.id &&
@@ -452,15 +326,15 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`inline-flex items-center text-xs font-medium ${getStatusBadgeClasses(
-                        task.status
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClasses(
+                        task.status,
                       )}`}
                     >
                       <CheckSquare className="w-3 h-3 mr-1" />
                       {getStatusLabel(task.status)}
                     </span>
                     {assignedChild && (
-                      <span className="inline-flex items-center text-xs font-medium">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                         Assigned to {assignedChild.name}
                       </span>
                     )}
@@ -490,10 +364,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     <Button
                       variant="primary"
                       onClick={() =>
-                        handleStatusChange(
-                          task.id,
-                          'waiting_for_approval'
-                        )
+                        handleStatusChange(task.id, 'waiting_for_approval')
                       }
                     >
                       <CheckCircle className="w-4 h-4" />
@@ -564,7 +435,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     const myTasks = tasks.filter((t) => t.assignedToId === currentUser.id);
     const pending = myTasks.filter((t) => t.status === 'pending').length;
     const waiting = myTasks.filter(
-      (t) => t.status === 'waiting_for_approval'
+      (t) => t.status === 'waiting_for_approval',
     ).length;
     const done = myTasks.filter((t) => t.status === 'completed').length;
 
@@ -652,59 +523,6 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             Open tasks
           </Button>
         </Card>
-
-        <Card className="mt-2">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              Your tasks
-            </p>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              Quick overview of what to do next
-            </span>
-          </div>
-          {myTasks.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              You don't have any tasks yet. Your parent can assign some from
-              their view.
-            </p>
-          ) : (
-            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-              {myTasks
-                .slice()
-                .sort((a, b) => b.createdAt - a.createdAt)
-                .slice(0, 5)
-                .map((task) => (
-                  <li
-                    key={task.id}
-                    className="flex items-center justify-between gap-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {task.title}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {task.status === 'pending' &&
-                          'Not started yet – you can do this one next.'}
-                        {task.status === 'waiting_for_approval' &&
-                          'Done! Waiting for your parent to approve.'}
-                        {task.status === 'completed' && 'Completed 🎉'}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                        {task.reward} kr
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-50 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
-                        {task.status === 'pending' && 'To do'}
-                        {task.status === 'waiting_for_approval' && 'Waiting'}
-                        {task.status === 'completed' && 'Done'}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-            </ul>
-          )}
-        </Card>
       </div>
     );
   }
@@ -713,10 +531,10 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const children = users.filter((u) => u.role === 'child');
   const totalBalance = children.reduce(
     (sum, c) => sum + (c.balance ?? 0),
-    0
+    0,
   );
   const waitingTasks = tasks.filter(
-    (t) => t.status === 'waiting_for_approval'
+    (t) => t.status === 'waiting_for_approval',
   );
 
   const handlePayment = (childId: string) => {
@@ -725,19 +543,24 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
     if (!child.phoneNumber) {
       alert(
-        `Please add a phone number for ${child.name} in the Family tab to use Swish.`
+        `Please add a phone number for ${child.name} in the Family tab to use Swish.`,
       );
       return;
     }
 
-    const url = buildSwishPaymentUrl({
-      phoneNumber: child.phoneNumber,
-      amount: child.balance ?? 0,
-      message: 'Veckopeng',
-    });
+    const paymentData = {
+      version: 1,
+      payee: { value: child.phoneNumber },
+      amount: { value: child.balance },
+      message: { value: 'Veckopeng' },
+    };
+
+    const url = `swish://payment?data=${encodeURIComponent(
+      JSON.stringify(paymentData),
+    )}`;
 
     const confirmed = window.confirm(
-      `Open Swish to pay ${child.balance} kr to ${child.name} (${child.phoneNumber})?`
+      `Open Swish to pay ${child.balance} kr to ${child.name}?`,
     );
 
     if (confirmed) {
@@ -745,11 +568,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       setTimeout(() => {
         if (
           window.confirm(
-            'Did the payment go through successfully? Press OK to reset balance to 0.'
+            'Did the payment go through successfully? Press OK to reset balance to 0.',
           )
         ) {
           const updated = users.map((u) =>
-            u.id === childId ? { ...u, balance: 0 } : u
+            u.id === childId ? { ...u, balance: 0 } : u,
           );
           onUpdateUsers(updated);
         }
@@ -850,16 +673,16 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <div className="grid gap-4 md:grid-cols-2">
             {children.map((child) => {
               const childTasks = tasks.filter(
-                (t) => t.assignedToId === child.id
+                (t) => t.assignedToId === child.id,
               );
               const pending = childTasks.filter(
-                (t) => t.status === 'pending'
+                (t) => t.status === 'pending',
               ).length;
               const waiting = childTasks.filter(
-                (t) => t.status === 'waiting_for_approval'
+                (t) => t.status === 'waiting_for_approval',
               ).length;
               const completed = childTasks.filter(
-                (t) => t.status === 'completed'
+                (t) => t.status === 'completed',
               ).length;
 
               return (
@@ -912,14 +735,49 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                       <CheckSquare className="w-4 h-4" />
                       View tasks
                     </Button>
-                    <Button
-                      variant="primary"
-                      disabled={!child.balance || !child.phoneNumber}
-                      onClick={() => handlePayment(child.id)}
-                    >
-                      <Smartphone className="w-4 h-4" />
-                      Pay with Swish
-                    </Button>
+
+                    <div className="flex flex-wrap gap-2">
+                      {/* Swish – fully working */}
+                      <Button
+                        variant="primary"
+                        disabled={
+                          !(child.balance ?? 0) ||
+                          !child.phoneNumber ||
+                          !/^[0-9+ ]+$/.test(child.phoneNumber)
+                        }
+                        onClick={() => handlePayment(child.id)}
+                        title={
+                          (child.balance ?? 0) > 0 &&
+                          child.phoneNumber &&
+                          /^[0-9+ ]+$/.test(child.phoneNumber)
+                            ? 'Open Swish with the full balance'
+                            : 'Requires a Swish phone number and a positive balance'
+                        }
+                      >
+                        <Smartphone className="w-4 h-4" />
+                        Swish
+                      </Button>
+
+                      {/* Venmo – placeholder, coming soon */}
+                      <Button
+                        variant="ghost"
+                        disabled
+                        title="Venmo support will be available in a future version"
+                      >
+                        <Smartphone className="w-4 h-4" />
+                        Venmo
+                      </Button>
+
+                      {/* Cash App – placeholder, coming soon */}
+                      <Button
+                        variant="ghost"
+                        disabled
+                        title="Cash App support will be available in a future version"
+                      >
+                        <Smartphone className="w-4 h-4" />
+                        Cash App
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               );
