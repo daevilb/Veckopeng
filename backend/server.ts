@@ -355,10 +355,7 @@ app.post('/api/tasks', (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const rewardInt = Number.isFinite(body.reward) ? Math.floor(body.reward) : NaN;
-    if (!Number.isFinite(rewardInt) || rewardInt <= 0) {
-      return res.status(400).json({ error: 'Reward must be a positive number' });
-    }
+    const rewardInt = Number.isFinite(body.reward) ? Math.floor(body.reward) : 0;
     const now = Math.floor(Date.now() / 1000);
     const createdAt = typeof body.createdAt === 'number' ? body.createdAt : now;
     const status = body.status ?? 'pending';
@@ -367,9 +364,6 @@ app.post('/api/tasks', (req, res) => {
     // Basic sanity: referenced user must exist
     const user = getUserById(assignedToId);
     if (!user) {
-    if (user.role !== 'child') {
-      return res.status(400).json({ error: 'Tasks can only be assigned to children' });
-    }
       return res.status(400).json({ error: 'Assigned user not found' });
     }
 
@@ -416,10 +410,6 @@ app.patch('/api/tasks/:id', (req, res) => {
     const updates: Partial<StoredTask> = {};
 
     if (typeof body.status === 'string') {
-      const allowedStatuses = ['pending', 'waiting_for_approval', 'completed'];
-      if (!allowedStatuses.includes(body.status)) {
-        return res.status(400).json({ error: 'Invalid status value' });
-      }
       updates.status = body.status;
     }
     if (typeof body.title === 'string') {
@@ -476,9 +466,6 @@ app.post('/api/tasks/:id/approve', (req, res) => {
     const user = getUserById(existing.assignedToId);
     if (!user) {
       return res.status(400).json({ error: 'Assigned user not found' });
-    if (existing.status !== 'waiting_for_approval') {
-      return res.status(400).json({ error: 'Task is not awaiting approval' });
-    }
     }
 
     const now = Math.floor(Date.now() / 1000);
