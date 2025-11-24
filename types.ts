@@ -13,13 +13,25 @@ export interface User {
   id: string;
   name: string;
   role: Role;
-  pin: string;
-  avatar: string; // Emoji avatar
-  phoneNumber?: string; // Swish, Venmo @username, CashApp $cashtag
-  paymentMethod?: PaymentMethod; // Default handled in UI
-  currency?: Currency; // Default handled in UI
-  balance: number; // Current unpaid allowance
-  totalEarned: number; // Lifetime cumulative earnings
+
+  // Login & identity
+  pin: string;                // 4-digit PIN
+  avatar: string;             // Emoji avatar
+
+  // Payment
+  /**
+   * Generic payment handle:
+   * - Swish: phone number (070..., +4670..., etc.)
+   * - Venmo: @username
+   * - Cash App: $cashtag
+   */
+  phoneNumber?: string;
+  paymentMethod?: PaymentMethod;
+
+  // Money
+  currency?: Currency;        // e.g. 'SEK' (default)
+  balance: number;            // Current unpaid allowance
+  totalEarned: number;        // Lifetime cumulative earnings
 }
 
 export interface Task {
@@ -30,7 +42,7 @@ export interface Task {
   assignedToId: string;
   status: TaskStatus;
   createdAt: number;
-  completedAt?: number;
+  completedAt?: number | null;
 }
 
 export interface AppState {

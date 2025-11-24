@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppState, User, Task } from '../types';
 import { Button } from './Button';
 import { Setup } from './Auth';
 import { Input } from './Input';
 import { Card } from './Card';
+import { useAppState } from './StateProvider';
+import { approveTaskApi, createTaskApi, updateTaskApi } from '../services/api';
+import { buildSwishPaymentUrl, buildVenmoPaymentUrl, buildCashAppPaymentUrl } from '../services/payments';
 import {
   CheckCircle,
   Clock,
@@ -29,6 +32,33 @@ interface TaskManagerProps {
 }
 
 type TaskStatus = Task['status'];
+
+const getStatusLabel = (status: TaskStatus) => {
+  switch (status) {
+    case 'pending':
+      return 'To do';
+    case 'waiting_for_approval':
+      return 'Waiting for approval';
+    case 'completed':
+      return 'Completed';
+    default:
+      return status;
+  }
+};
+
+const getStatusBadgeClasses = (status: TaskStatus) => {
+  switch (status) {
+    case 'pending':
+      return 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+    case 'waiting_for_approval':
+      return 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+    case 'completed':
+      return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+    default:
+      return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+  }
+};
+
 
 export const TaskManager: React.FC<TaskManagerProps> = ({
   currentUser,
@@ -56,7 +86,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     ? tasks
     : tasks.filter((t) => t.assignedToId === currentUser.id);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTask.title || !newTask.assignedToId) return;
 
@@ -70,63 +100,95 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       createdAt: Date.now(),
     };
 
-    onStateChange({ tasks: [...tasks, task] });
+    try {
+      // Create task in backend first
+      const created = await createTaskApi({
+        ...task,
+        completedAt: null,
+      });
 
-    setIsCreating(false);
-    setNewTask({
-      title: '',
-      description: '',
-      reward: 20,
-      assignedToId: '',
-    });
+      // Then update local state (which will also be persisted via saveState)
+      onStateChange({ tasks: [...tasks, created] });
+
+      setIsCreating(false);
+      setNewTask({
+        title: '',
+        description: '',
+        reward: 20,
+        assignedToId: '',
+      });
+    } catch (err: any) {
+      console.error('Failed to create task:', err);
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Could not create task. Please try again.';
+      alert(message);
+    }
   };
 
   const handleDelete = (taskId: string) => {
     const updatedTasks = tasks.filter((t) => t.id !== taskId);
+    // For now we still rely on saveState to sync deletions.
     onStateChange({ tasks: updatedTasks });
   };
 
-  const handleStatusChange = (taskId: string, status: TaskStatus) => {
-    let updatedUsers = [...users];
+  const handleStatusChange = async (taskId: string, status: TaskStatus) => {
+    const existing = tasks.find((t) => t.id === taskId);
+    if (!existing) return;
 
-    const updatedTasks = tasks.map((t) => {
-      if (t.id !== taskId) return t;
+    // Parent approval: use dedicated backend endpoint so balance is correct
+    if (
+      status === 'completed' &&
+      currentUser.role === 'parent' &&
+      existing.status === 'waiting_for_approval'
+    ) {
+      try {
+        const { task: updatedTask, user: updatedUser } = await approveTaskApi(taskId);
 
-      // When parent approves a task (waiting_for_approval -> completed),
-      // add the reward to the child's balance.
-      if (status === 'completed' && t.status === 'waiting_for_approval') {
-        const idx = updatedUsers.findIndex((u) => u.id === t.assignedToId);
-        if (idx !== -1) {
-          const child = updatedUsers[idx];
-          updatedUsers[idx] = {
-            ...child,
-            balance: (child.balance ?? 0) + (t.reward ?? 0),
-          };
-        }
+        const updatedTasks = tasks.map((t) =>
+          t.id === taskId ? (updatedTask as Task) : t
+        );
+
+        const updatedUsers = users.map((u) =>
+          u.id === updatedUser.id ? (updatedUser as User) : u
+        );
+
+        onStateChange({
+          tasks: updatedTasks,
+          users: updatedUsers,
+        });
+      } catch (err) {
+        console.error('Failed to approve task:', err);
+        alert('Could not approve task. Please try again.');
+      }
+      return;
+    }
+
+    // Other status changes (child marking as done, parent sending back, etc.)
+    try {
+      const body: any = { status };
+
+      // Only adjust completedAt when we truly complete, or explicitly reset it
+      if (status === 'completed') {
+        body.completedAt = Math.floor(Date.now() / 1000);
+      } else if (status === 'pending') {
+        body.completedAt = null;
       }
 
-      return {
-        ...t,
-        status,
-        completedAt: status === 'completed' ? Date.now() : t.completedAt,
-      };
-    });
+      const updatedTask = await updateTaskApi(taskId, body);
 
-    onStateChange({ tasks: updatedTasks, users: updatedUsers });
-  };
+      const updatedTasks = tasks.map((t) =>
+        t.id === taskId ? (updatedTask as Task) : t
+      );
 
-  const getStatusLabel = (status: TaskStatus) => {
-    switch (status) {
-      case 'pending':
-        return 'To do';
-      case 'waiting_for_approval':
-        return 'Waiting for approval';
-      case 'completed':
-        return 'Completed';
-      default:
-        return status;
+      onStateChange({ tasks: updatedTasks });
+    } catch (err) {
+      console.error('Failed to update task status:', err);
+      alert('Could not update task. Please try again.');
     }
   };
+
 
   const getStatusBadgeClasses = (status: TaskStatus) => {
     switch (status) {
@@ -401,6 +463,21 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onNavigate,
 }) => {
   const isParent = currentUser.role === 'parent';
+  const { reload } = useAppState();
+
+  // Auto-refresh state for parents so new completed tasks show up in "Waiting for approval"
+  useEffect(() => {
+    if (!isParent) return;
+
+    const interval = setInterval(() => {
+      reload().catch((err) => {
+        console.error('Failed to auto-refresh state', err);
+      });
+    }, 10000); // every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [isParent, reload]);
+
 
   if (!isParent) {
     const myTasks = tasks.filter((t) => t.assignedToId === currentUser.id);
@@ -512,30 +589,65 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     const child = users.find((u) => u.id === childId);
     if (!child || (child.balance ?? 0) <= 0) return;
 
+    const method = child.paymentMethod ?? 'swish';
+
     if (!child.phoneNumber) {
+      const label =
+        method === 'swish'
+          ? 'phone number'
+          : method === 'venmo'
+          ? 'Venmo username'
+          : 'Cash App $cashtag';
+
       alert(
-        `Please add a phone number for ${child.name} in the Family tab to use Swish.`,
+        `Please add a ${label} for ${child.name} in the Family tab before paying.`,
       );
       return;
     }
 
-    const paymentData = {
-      version: 1,
-      payee: { value: child.phoneNumber },
-      amount: { value: child.balance },
-      message: { value: 'Veckopeng' },
-    };
+    const amount = child.balance ?? 0;
 
-    const url = `swish://payment?data=${encodeURIComponent(
-      JSON.stringify(paymentData),
-    )}`;
+    let url: string;
+    let humanMethodLabel: string;
+
+    if (method === 'swish') {
+      if (!/^[0-9+ ]+$/.test(child.phoneNumber)) {
+        alert('Please enter a valid Swish phone number (digits and + only).');
+        return;
+      }
+
+      url = buildSwishPaymentUrl({
+        phoneNumber: child.phoneNumber,
+        amount,
+        message: 'Veckopeng',
+      });
+      humanMethodLabel = 'Swish';
+    } else if (method === 'venmo') {
+      url = buildVenmoPaymentUrl({
+        username: child.phoneNumber,
+        amount,
+        note: 'Veckopeng',
+      });
+      humanMethodLabel = 'Venmo';
+    } else if (method === 'cashapp') {
+      url = buildCashAppPaymentUrl({
+        cashtag: child.phoneNumber,
+        amount,
+        note: 'Veckopeng',
+      });
+      humanMethodLabel = 'Cash App';
+    } else {
+      alert('Unsupported payment method for this child.');
+      return;
+    }
 
     const confirmed = window.confirm(
-      `Open Swish to pay ${child.balance} kr to ${child.name} (${child.phoneNumber})?`,
+      `Open ${humanMethodLabel} to pay ${amount} kr to ${child.name}?`,
     );
 
     if (confirmed) {
       window.location.href = url;
+
       setTimeout(() => {
         if (
           window.confirm(
@@ -706,14 +818,59 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                       <CheckSquare className="w-4 h-4" />
                       View tasks
                     </Button>
-                    <Button
-                      variant="primary"
-                      disabled={!child.balance}
-                      onClick={() => handlePayment(child.id)}
-                    >
-                      <Smartphone className="w-4 h-4" />
-                      Pay with Swish
-                    </Button>
+
+                    <div className="flex flex-wrap gap-2">
+                      {(() => {
+                        const method = child.paymentMethod ?? 'swish';
+                        const hasHandle = !!child.phoneNumber;
+                        const hasPositiveBalance = (child.balance ?? 0) > 0;
+
+                        let label = 'Pay';
+                        let title = '';
+                        let canPay = hasHandle && hasPositiveBalance;
+
+                        if (method === 'swish') {
+                          label = 'Swish';
+                          title = hasHandle
+                            ? 'Open Swish with the full balance'
+                            : 'Requires a Swish phone number and a positive balance';
+                          // For Swish we also require a phone-like pattern
+                          if (
+                            !child.phoneNumber ||
+                            !/^[0-9+ ]+$/.test(child.phoneNumber)
+                          ) {
+                            canPay = false;
+                            title = 'Requires a valid Swish phone number and a positive balance';
+                          }
+                        } else if (method === 'venmo') {
+                          label = 'Venmo';
+                          title = hasHandle
+                            ? 'Open Venmo with the full balance'
+                            : 'Requires a Venmo username and a positive balance';
+                        } else if (method === 'cashapp') {
+                          label = 'Cash App';
+                          title = hasHandle
+                            ? 'Open Cash App with the full balance'
+                            : 'Requires a Cash App $cashtag and a positive balance';
+                        }
+
+                        if (!title) {
+                          title = 'Set a payment method and handle on the Family tab.';
+                        }
+
+                        return (
+                          <Button
+                            variant="primary"
+                            disabled={!canPay}
+                            onClick={() => handlePayment(child.id)}
+                            title={title}
+                          >
+                            <Smartphone className="w-4 h-4" />
+                            {label}
+                          </Button>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </Card>
               );
