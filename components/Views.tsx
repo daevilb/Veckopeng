@@ -56,11 +56,14 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
 
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [assignedFilter, setAssignedFilter] = useState<string | 'all'>('all');
   const isParent = currentUser.role === 'parent';
   const children = users.filter((u) => u.role === 'child');
 
   const visibleTasks = isParent
-    ? tasks
+    ? tasks.filter((t) =>
+        assignedFilter === 'all' ? true : t.assignedToId === assignedFilter
+      )
     : tasks.filter((t) => t.assignedToId === currentUser.id);
 
   const filteredTasks = visibleTasks
@@ -374,11 +377,30 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
               Completed
             </Button>
           </div>
-          {hasAnyTasks && (
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Showing {filteredTasks.length} of {visibleTasks.length} tasks
-            </p>
-          )}
+          <div className="flex flex-col items-end gap-1 text-xs text-gray-500 dark:text-gray-400">
+            {hasAnyTasks && (
+              <p>
+                Showing {filteredTasks.length} of {visibleTasks.length} tasks
+              </p>
+            )}
+            {isParent && children.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span>Child:</span>
+                <select
+                  value={assignedFilter}
+                  onChange={(e) => setAssignedFilter(e.target.value)}
+                  className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:bg-gray-900 dark:border-gray-700"
+                >
+                  <option value="all">All children</option>
+                  {children.map((child) => (
+                    <option key={child.id} value={child.id}>
+                      {child.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
         {hasAnyTasks && statusFilter === 'all' && (
           <label className="inline-flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -394,17 +416,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       </div>
 
       {/* Task list */}
-      {filteredTasks.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center py-12 text-center space-y-3">
-          <CheckSquare className="w-10 h-10 text-gray-300 dark:text-gray-600" />
-          <h3 className="font-semibold text-gray-800 dark:text-gray-100">
-            No tasks to show
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {!hasAnyTasks
-              ? isParent
-                ? 'Create a task and assign it to one of your children to get started.'
-                : 'Your parent has not assigned any tasks to you yet.'
+s to you yet.'
               : 'No tasks match this filter. Try changing the status above.'}
           </p>
         </Card>
