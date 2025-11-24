@@ -31,6 +31,33 @@ interface TaskManagerProps {
 
 type TaskStatus = Task['status'];
 
+const getStatusLabel = (status: TaskStatus) => {
+  switch (status) {
+    case 'pending':
+      return 'To do';
+    case 'waiting_for_approval':
+      return 'Waiting for approval';
+    case 'completed':
+      return 'Completed';
+    default:
+      return status;
+  }
+};
+
+const getStatusBadgeClasses = (status: TaskStatus) => {
+  switch (status) {
+    case 'pending':
+      return 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+    case 'waiting_for_approval':
+      return 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+    case 'completed':
+      return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+    default:
+      return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+  }
+};
+
+
 export const TaskManager: React.FC<TaskManagerProps> = ({
   currentUser,
   users,
