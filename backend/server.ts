@@ -3,6 +3,10 @@ import cors from 'cors';
 import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
+import { requireFamilyKey } from './familyAuth';
+
+app.get('/api/health', (_req, res) => res.json({ status: 'ok' })); // public
+app.use('/api', requireFamilyKey); // everything below requires x-family-key
 
 const app = express();
 const PORT = 8080;
