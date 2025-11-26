@@ -50,7 +50,7 @@ git clone https://github.com/daevilb/veckopeng.git
 cd veckopeng
 ```
 
-### 2. Copy environment template (NOT IMPLEMENTED YET)
+### 2. Copy environment template (FAMILY-KEY NOT IMPLEMENTED YET)
 
 ```bash
 cp .env.example .env
