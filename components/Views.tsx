@@ -108,9 +108,8 @@ function getNextWeek(date: Date) {
 
 // Helper to check if two dates are in the same ISO week
 function isSameWeek(d1: Date, d2: Date = new Date()): boolean {
-  // CHANGED: d2 optional
-  const date1 = new Date(d1.getTime()); // CHANGED
-  const date2 = new Date(d2.getTime()); // CHANGED
+  const date1 = new Date(d1.getTime());
+  const date2 = new Date(d2.getTime());
 
   date1.setHours(0, 0, 0, 0);
   date2.setHours(0, 0, 0, 0);
@@ -151,12 +150,10 @@ const getStatusBadgeClasses = (status: TaskStatus) => {
 // ============================================
 
 export const SetupWrapper: React.FC = () => {
-  // NEW
-  const { state, reload } = useAppState(); // NEW
-  const hasUsers = state.users && state.users.length > 0; // NEW
+  const { state, reload } = useAppState();
+  const hasUsers = state.users && state.users.length > 0;
 
   const handleComplete = async () => {
-    // NEW
     try {
       await reload();
     } catch (err) {
@@ -166,11 +163,10 @@ export const SetupWrapper: React.FC = () => {
 
   if (hasUsers) {
     // Once at least one user exists, don't show setup anymore
-    return null; // NEW
+    return null;
   }
 
   return (
-    // NEW
     <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
       <Setup onComplete={handleComplete} isFirstRun={!hasUsers} />
     </div>
@@ -237,7 +233,7 @@ const TaskList: React.FC<TaskListProps> = ({
     };
 
     try {
-      const saved = await updateTaskApi(updatedTask.id, updatedTask); // CHANGED
+      const saved = await updateTaskApi(updatedTask.id, updatedTask);
       onUpdateTask(saved);
       cancelEdit();
     } catch (err) {
@@ -579,10 +575,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   };
 
   const handleStatusChange = async (taskId: string, status: TaskStatus) => {
-    // CHANGED
     try {
       if (isParent && status === 'completed') {
-        // Parent approving a task: use approveTaskApi so balance/totalEarned are updated // CHANGED
+        // Parent approving a task: use approveTaskApi so balance/totalEarned are updated
         const {
           task: updatedTask,
           user: updatedUser,
@@ -593,7 +588,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
         onStateChange({ tasks: newTasks, users: newUsers });
       } else {
-        // Child marking done (waiting_for_approval) or parent resetting/denying: simple status update // CHANGED
+        // Child marking done (waiting_for_approval) or parent resetting/denying: simple status update
         const patch: Partial<Pick<Task, 'status' | 'title' | 'description' | 'reward'>> & {
           completedAt?: number | null;
         } = { status };
@@ -1114,7 +1109,8 @@ const ChildEditRow: React.FC<{
     child.paymentMethod || 'swish',
   );
 
-  // CHANGED: removed syncing useEffect that overwrote edited fields
+  // NOTE: we intentionally do NOT resync local state from props here,
+  // to avoid overwriting user edits while typing.
 
   const handleBlur = (field: keyof User, value: any) => {
     if (value !== child[field]) {
@@ -1240,7 +1236,7 @@ export const FamilyManager: React.FC<FamilyManagerProps> = ({
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberPin, setNewMemberPin] = useState('');
   const [newMemberRole, setNewMemberRole] = useState<'parent' | 'child'>('child');
-  const [newMemberAvatar, setNewMemberAvatar] = useState('👤'); // NEW
+  const [newMemberAvatar, setNewMemberAvatar] = useState('👤'); // avatar default
 
   const avatarOptions = [
     '👨‍👩‍👧',
@@ -1259,7 +1255,7 @@ export const FamilyManager: React.FC<FamilyManagerProps> = ({
     '🦁',
     '🐵',
     '🐼',
-  ]; // NEW
+  ];
 
   const handleUpdateUser = async (id: string, updates: Partial<User>) => {
     try {
@@ -1286,7 +1282,7 @@ export const FamilyManager: React.FC<FamilyManagerProps> = ({
         name: trimmedName,
         role: newMemberRole,
         pin: trimmedPin,
-        avatar: newMemberAvatar, // CHANGED
+        avatar: newMemberAvatar,
         phoneNumber: '',
         paymentMethod: 'swish' as PaymentMethod,
         currency: 'SEK' as const,
@@ -1301,7 +1297,7 @@ export const FamilyManager: React.FC<FamilyManagerProps> = ({
       setNewMemberName('');
       setNewMemberPin('');
       setNewMemberRole('child');
-      setNewMemberAvatar('👤'); // NEW
+      setNewMemberAvatar('👤');
       setIsAddingMember(false);
     } catch (err) {
       console.error('Failed to create family member', err);
@@ -1366,7 +1362,7 @@ export const FamilyManager: React.FC<FamilyManagerProps> = ({
               </div>
             </div>
 
-            {/* Avatar Picker for new member */} {/* NEW */}
+            {/* Avatar Picker for new member */}
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-200">
                 Choose avatar
@@ -1564,13 +1560,29 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     setPaymentStep('verify');
   };
 
-  const handleConfirmPaid = () => {
-    if (!paymentModal) return;
-    const updated = users.map((u) =>
-      u.id === paymentModal.childId ? { ...u, balance: 0 } : u,
-    );
-    onUpdateUsers(updated);
-    setPaymentModal(null);
+  const handleConfirmPaid = async () => { // CHANGED
+    if (!paymentModal) return; // CHANGED
+    try { // CHANGED
+      const child = users.find((u) => u.id === paymentModal.childId); // CHANGED
+      if (!child) { // CHANGED
+        setPaymentModal(null); // CHANGED
+        return; // CHANGED
+      } // CHANGED
+
+      // Persist balance reset to backend // CHANGED
+      const updatedUser = await updateUserApi(child.id, { balance: 0 }); // CHANGED
+
+      // Update local users list to reflect backend // CHANGED
+      const updatedUsers = users.map((u) =>
+        u.id === updatedUser.id ? updatedUser : u,
+      ); // CHANGED
+
+      onUpdateUsers(updatedUsers); // CHANGED
+      setPaymentModal(null); // CHANGED
+    } catch (err) { // CHANGED
+      console.error('Failed to reset balance after payment', err); // CHANGED
+      alert('Failed to reset balance in Veckopeng. Please try again.'); // CHANGED
+    } // CHANGED
   };
 
   const handleSync = async () => {
@@ -1888,7 +1900,6 @@ export const Views: React.FC<ViewsProps> = ({
   };
 
   const handleSetupComplete = async () => {
-    // NEW
     try {
       await reload();
     } catch (err) {
@@ -1900,7 +1911,6 @@ export const Views: React.FC<ViewsProps> = ({
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
         <Setup onComplete={handleSetupComplete} isFirstRun={!hasParent} />
-        {/* CHANGED: pass required props */}
       </div>
     );
   }
