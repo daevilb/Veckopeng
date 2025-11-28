@@ -27,7 +27,6 @@ import {
   AlertCircle,
   ArrowRight,
   ArrowLeft,
-  RefreshCw,
   Smartphone,
   Users,
   Calendar,
@@ -41,7 +40,7 @@ import {
   Trash2,
   UserPlus,
   Coins,
-} from 'lucide-react';
+} from 'lucide-react'; // CHANGED: removed RefreshCw from imports
 
 type TaskStatus = Task['status'];
 
@@ -254,7 +253,8 @@ const TaskList: React.FC<TaskListProps> = ({
             className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-300"
           >
             <CheckSquare className="w-3.5 h-3.5" />
-            Mark done
+            {/* CHANGED: label text */}
+            Complete {/* CHANGED */}
           </button>
         );
       }
@@ -590,7 +590,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         onStateChange({ tasks: newTasks, users: newUsers });
       } else {
         // Child marking done (waiting_for_approval) or parent resetting/denying: simple status update
-        const patch: Partial<Pick<Task, 'status' | 'title' | 'description' | 'reward'>> & {
+        const patch: Partial<
+          Pick<Task, 'status' | 'title' | 'description' | 'reward'>
+        > & {
           completedAt?: number | null;
         } = { status };
 
@@ -1502,9 +1504,8 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onNavigate,
 }) => {
   const isParent = currentUser.role === 'parent';
-  const { reload } = useAppState();
+  // const { reload } = useAppState(); // CHANGED: removed unused reload
 
-  const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'success'>('idle');
   const [paymentModal, setPaymentModal] = useState<PaymentModalState | null>(null);
   const [paymentStep, setPaymentStep] = useState<'confirm' | 'verify'>('confirm');
 
@@ -1534,27 +1535,27 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }
 
     const amount = child.balance ?? 0;
-let url = '';
-let label: string = 'Swish'; // CHANGED (explicit type, but behaviour same)
+    let url = '';
+    let label: string = 'Swish';
 
-if (method === 'swish') {
-  url = buildSwishPaymentUrl({ phoneNumber: child.phoneNumber, amount });
-  label = 'Swish';
-} else if (method === 'venmo') {
-  url = buildVenmoPaymentUrl({ username: child.phoneNumber, amount });
-  label = 'Venmo';
-} else if (method === 'cashapp') {
-  url = buildCashAppPaymentUrl({ cashtag: child.phoneNumber, amount });
-  label = 'Cash App';
-} else if (method === 'paypal') { // CHANGED
-  const currency = (child.currency || 'SEK').toString(); // CHANGED
-  url = buildPaypalPaymentUrl({ // CHANGED
-    handle: child.phoneNumber, // still using the existing identifier field
-    amount,
-    currency,                  // pass child's currency (SEK, USD, etc.)
-  });
-  label = 'PayPal'; // CHANGED
-}
+    if (method === 'swish') {
+      url = buildSwishPaymentUrl({ phoneNumber: child.phoneNumber, amount });
+      label = 'Swish';
+    } else if (method === 'venmo') {
+      url = buildVenmoPaymentUrl({ username: child.phoneNumber, amount });
+      label = 'Venmo';
+    } else if (method === 'cashapp') {
+      url = buildCashAppPaymentUrl({ cashtag: child.phoneNumber, amount });
+      label = 'Cash App';
+    } else if (method === 'paypal') {
+      const currency = (child.currency || 'SEK').toString();
+      url = buildPaypalPaymentUrl({
+        handle: child.phoneNumber,
+        amount,
+        currency,
+      });
+      label = 'PayPal';
+    }
 
     setPaymentModal({
       childId: child.id,
@@ -1570,41 +1571,28 @@ if (method === 'swish') {
     setPaymentStep('verify');
   };
 
-  const handleConfirmPaid = async () => { // CHANGED
-    if (!paymentModal) return; // CHANGED
-    try { // CHANGED
-      const child = users.find((u) => u.id === paymentModal.childId); // CHANGED
-      if (!child) { // CHANGED
-        setPaymentModal(null); // CHANGED
-        return; // CHANGED
-      } // CHANGED
+  const handleConfirmPaid = async () => {
+    if (!paymentModal) return;
+    try {
+      const child = users.find((u) => u.id === paymentModal.childId);
+      if (!child) {
+        setPaymentModal(null);
+        return;
+      }
 
-      // Persist balance reset to backend // CHANGED
-      const updatedUser = await updateUserApi(child.id, { balance: 0 }); // CHANGED
+      // Persist balance reset to backend
+      const updatedUser = await updateUserApi(child.id, { balance: 0 });
 
-      // Update local users list to reflect backend // CHANGED
+      // Update local users list to reflect backend
       const updatedUsers = users.map((u) =>
         u.id === updatedUser.id ? updatedUser : u,
-      ); // CHANGED
+      );
 
-      onUpdateUsers(updatedUsers); // CHANGED
-      setPaymentModal(null); // CHANGED
-    } catch (err) { // CHANGED
-      console.error('Failed to reset balance after payment', err); // CHANGED
-      alert('Failed to reset balance in Veckopeng. Please try again.'); // CHANGED
-    } // CHANGED
-  };
-
-  const handleSync = async () => {
-    try {
-      setSyncState('syncing');
-      await reload();
-      setSyncState('success');
-      setTimeout(() => setSyncState('idle'), 1500);
+      onUpdateUsers(updatedUsers);
+      setPaymentModal(null);
     } catch (err) {
-      console.error('Failed to sync state', err);
-      setSyncState('idle');
-      alert('Failed to sync state. Please try again.');
+      console.error('Failed to reset balance after payment', err);
+      alert('Failed to reset balance in Veckopeng. Please try again.');
     }
   };
 
@@ -1621,6 +1609,55 @@ if (method === 'swish') {
 
   const totalBalances = children.reduce((sum, c) => sum + (c.balance ?? 0), 0);
 
+  // show week range label in header
+  const weekRangeLabel = getWeekRange(new Date());
+
+  // per-child weekly overview data
+  const now = new Date();
+  const childSummaries = children.map((child) => {
+    const childTasks = tasks.filter((t) => t.assignedToId === child.id);
+
+    const thisWeekCompleted = childTasks.filter((t) => {
+      if (t.status !== 'completed') return false;
+      const dateToCheck = t.completedAt
+        ? new Date(t.completedAt * 1000)
+        : new Date(t.createdAt);
+      return isSameWeek(dateToCheck, now);
+    });
+
+    const earnedThisWeekChild = thisWeekCompleted.reduce(
+      (sum, t) => sum + t.reward,
+      0,
+    );
+
+    const waitingForApproval = childTasks.filter(
+      (t) => t.status === 'waiting_for_approval',
+    ).length;
+
+    const pendingTasks = childTasks.filter((t) => t.status === 'pending').length;
+
+    const completedTasks = childTasks.filter(
+      (t) => t.status === 'completed',
+    ).length;
+
+    const weeklyAllowance = child.weeklyAllowance ?? 0;
+    const currentBalance = child.balance ?? 0;
+    const allowanceProgress =
+      weeklyAllowance > 0
+        ? Math.min(currentBalance / weeklyAllowance, 1)
+        : 0;
+
+    return {
+      child,
+      earnedThisWeekChild,
+      waitingForApproval,
+      pendingTasks,
+      completedTasks,
+      weeklyAllowance,
+      allowanceProgress,
+    };
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1631,19 +1668,11 @@ if (method === 'swish') {
           <p className="text-sm text-gray-500 dark:text-gray-400">
             See how your family is doing this week.
           </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+            {weekRangeLabel}
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={handleSync}
-          className="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
-        >
-          {syncState === 'syncing' ? (
-            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="h-3.5 w-3.5" />
-          )}
-          Sync
-        </button>
+        {/* CHANGED: removed Sync button from overview header */}
       </div>
 
       {/* High-level stats */}
@@ -1716,6 +1745,93 @@ if (method === 'swish') {
           </p>
         </Card>
       </div>
+
+      {/* This week per child */}
+      {children.length > 0 && (
+        <div className="space-y-2 mt-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            This week per child
+          </h2>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {childSummaries.map(
+              ({
+                child,
+                earnedThisWeekChild,
+                waitingForApproval,
+                pendingTasks,
+                completedTasks,
+                weeklyAllowance,
+                allowanceProgress,
+              }) => (
+                <Card key={child.id} className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-100 flex items-center justify-center text-lg">
+                      {child.avatar || '👤'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-white truncate">
+                        {child.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Balance:{' '}
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {child.balance ?? 0} kr
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        Current balance
+                      </p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">
+                        {child.balance ?? 0} kr
+                      </p>
+                    </div>
+
+                    {weeklyAllowance > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                          Weekly allowance: {weeklyAllowance} kr
+                        </p>
+                        <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                          <div
+                            className="h-full bg-pink-500 dark:bg-pink-400 transition-all"
+                            style={{ width: `${allowanceProgress * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
+                      <span>
+                        Pending:{' '}
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {pendingTasks}
+                        </span>
+                      </span>
+                      <span>
+                        Waiting approval:{' '}
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {waitingForApproval}
+                        </span>
+                      </span>
+                      <span>
+                        Completed:{' '}
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {completedTasks}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              ),
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Children list with pay buttons */}
       <Card className="p-4">
@@ -1890,27 +2006,17 @@ export const Views: React.FC<ViewsProps> = ({
   onTabChange,
 }) => {
   const { users, tasks } = state;
-  const { reload } = useAppState();
-  const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'success'>('idle');
+  // const { reload } = useAppState(); // CHANGED: remove unused reload here as well
+  // const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'success'>('idle'); // CHANGED: removed sync state
 
   const hasParent = users.some((u) => u.role === 'parent');
   const setupComplete = hasParent;
 
-  const handleSync = async () => {
-    try {
-      setSyncState('syncing');
-      await reload();
-      setSyncState('success');
-      setTimeout(() => setSyncState('idle'), 1500);
-    } catch (err) {
-      console.error('Failed to sync state', err);
-      setSyncState('idle');
-      alert('Failed to sync state. Please try again.');
-    }
-  };
+  // CHANGED: removed handleSync() function entirely (no longer needed)
 
   const handleSetupComplete = async () => {
     try {
+      const { reload } = useAppState(); // CHANGED: call reload only when needed
       await reload();
     } catch (err) {
       console.error('Failed to reload after setup (Views)', err);
@@ -1961,18 +2067,7 @@ export const Views: React.FC<ViewsProps> = ({
                   Create, assign, and track family tasks.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleSync}
-                className="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
-              >
-                {syncState === 'syncing' ? (
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5" />
-                )}
-                Sync
-              </button>
+              {/* CHANGED: removed Sync button from Tasks header */}
             </div>
             <TaskManager
               currentUser={currentUser}
