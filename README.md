@@ -186,7 +186,30 @@ All core app data (users, tasks, approvals, balances) lives in the **database**,
 git clone https://github.com/daevilb/veckopeng.git
 cd veckopeng
 docker compose up -d --build
+```
 
+## Follow the first-time setup:
 
+Create your parent account (with avatar & PIN)
+Add your children
+Add tasks
+Hand the device to your kids or create a shortcut to veckopeng from their own device and watch the chores mysteriously get done
 
+## 🔐 Data & privacy
 
+Everything runs in your environment (homelab, NAS, VPS, etc.)
+No third-party databases or analytics
+SQLite database stored on your own disk (via Docker volume)
+Payments are always performed in the official payment apps – Veckopeng only crafts the links
+
+## 🧭 Roadmap / ideas
+```
+Things I’d like to add over time:
+📅 Recurring tasks (e.g. “every Saturday”)
+📊 More history / charts per child
+🌍 Localization (Swedish / English toggle in the UI)
+📱 Native mobile wrapper / Android app
+🔔 Optional notifications (e.g. via e-mail or push gateway)
+
+If you have ideas or feature requests, open an issue or PR!
+```
