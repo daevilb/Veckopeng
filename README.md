@@ -1,4 +1,5 @@
-[Veckopeng Banner](./docs/Screenshot 2025-11-29 141132.png)
+<img width="1027" height="1269" alt="Screenshot 2025-11-29 141132" src="https://github.com/user-attachments/assets/0ebb69fc-c641-475e-8018-a03bb4622a4a" />
+
 
 # Veckopeng
 
