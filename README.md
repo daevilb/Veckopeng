@@ -1,4 +1,4 @@
-![Veckopeng Banner](./docs/veckopeng-banner.png)
+![Veckopeng Banner](./docs/Screenshot 2025-11-29 141132.png)
 
 # Veckopeng
 
